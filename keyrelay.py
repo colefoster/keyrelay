@@ -109,6 +109,19 @@ def page(item, request_id):
       <dt>Request</dt><dd>""" + html.escape(request_id) + """</dd></dl>""" + form + script + "</main></html>"
 
 
+def home_page():
+    return """<!doctype html><html lang="en"><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>Keyrelay</title><style>
+      body{background:#101820;color:#f1f5f9;font:16px system-ui;margin:0;min-height:100vh;display:grid;place-items:center}
+      main{box-sizing:border-box;width:min(34rem,100%);padding:2rem}
+      span{color:#67e8f9;font-size:.85rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+      h1{font-size:2rem;margin:.4rem 0 1rem}p{color:#cbd5e1;line-height:1.6}
+      </style><main><span>Tailnet only</span><h1>Keyrelay is ready</h1>
+      <p>Ask your coding agent to use Keyrelay when a command needs a token or key. It will give you a one-time link to enter the credential here.</p>
+      </main></html>"""
+
+
 def handler_factory(allowed_email):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
@@ -134,6 +147,8 @@ def handler_factory(allowed_email):
             if self.command == "POST" and origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
                 return reply(self, 403, {"error": "Invalid origin"})
             path = urllib.parse.urlsplit(self.path).path
+            if self.command == "GET" and path == "/":
+                return reply(self, 200, home_page(), "text/html; charset=utf-8")
             if self.command == "GET" and path == "/health":
                 return reply(self, 200, {"ok": True})
             if self.command == "POST" and path == "/api/requests":
