@@ -7,13 +7,13 @@ Wants=network-online.target
 Type=simple
 DynamicUser=yes
 WorkingDirectory=/opt/keyrelay
-ExecStart=/usr/bin/python3 /opt/keyrelay/keyrelay.py serve --email cole@thefostersonline.com --port 8765
+ExecStart=/usr/bin/python3 /opt/keyrelay/keyrelay.py serve --email cole@thefostersonline.com --port 8765 --auth whois
 Restart=on-failure
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
-RestrictAddressFamilies=AF_INET AF_INET6
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
 [Install]
 WantedBy=multi-user.target

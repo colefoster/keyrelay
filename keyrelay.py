@@ -3,6 +3,7 @@
 
 import argparse
 import html
+import ipaddress
 import json
 import os
 import secrets
@@ -122,14 +123,32 @@ def home_page():
       </main></html>"""
 
 
-def handler_factory(allowed_email):
+def tailnet_login(ip):
+    try:
+        if ipaddress.ip_address(ip) not in ipaddress.ip_network("100.64.0.0/10"):
+            return None
+        result = subprocess.run(["tailscale", "whois", "--json", ip], capture_output=True, text=True, timeout=3)
+        if result.returncode:
+            return None
+        return json.loads(result.stdout).get("UserProfile", {}).get("LoginName")
+    except (ValueError, OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def handler_factory(allowed_email, auth_mode="serve"):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
             # Never log request URLs or headers; they may contain sensitive metadata.
             pass
 
         def authorized(self):
-            return self.headers.get("Tailscale-User-Login", "").lower() == allowed_email.lower()
+            if auth_mode == "serve":
+                login = self.headers.get("Tailscale-User-Login")
+            else:
+                if self.headers.get("Host") != "keyrelay.colefoster.ca":
+                    return False
+                login = tailnet_login(self.headers.get("X-Real-IP", ""))
+            return (login or "").lower() == allowed_email.lower()
 
         def read_json(self):
             try:
@@ -255,11 +274,12 @@ def run(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
-    serve = sub.add_parser("serve", help="Start localhost broker behind Tailscale Serve")
+    serve = sub.add_parser("serve", help="Start the localhost broker")
     serve.add_argument("--email", required=True, help="Only this Tailscale user may use the broker")
     serve.add_argument("--port", type=int, default=8765)
+    serve.add_argument("--auth", choices=("serve", "whois"), default="serve", help="Identity source: Tailscale Serve header or nginx client IP")
     runner = sub.add_parser("run", help="Request a secret and run a command")
-    runner.add_argument("--url", required=True, help="Tailscale Serve HTTPS URL")
+    runner.add_argument("--url", required=True, help="Private broker HTTPS URL")
     mode = runner.add_mutually_exclusive_group(required=True)
     mode.add_argument("--env", help="Inject as this environment variable")
     mode.add_argument("--stdin", action="store_true", help="Pass secret to command on standard input")
@@ -270,7 +290,7 @@ def main():
         if args.action == "serve":
             if args.port < 1 or args.port > 65535:
                 raise RuntimeError("Invalid port")
-            server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_factory(args.email))
+            server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_factory(args.email, args.auth))
             print("Listening on 127.0.0.1:%d" % args.port, flush=True)
             server.serve_forever()
         else:
