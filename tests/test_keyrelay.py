@@ -64,6 +64,11 @@ class ExchangeTest(unittest.TestCase):
         self.assertIn("&lt;script&gt;", html)
         self.assertNotIn("<script>alert", html)
 
+    def test_homepage_explains_handoff(self):
+        status, body = self.request("/")
+        self.assertEqual(status, 200)
+        self.assertIn("Keyrelay is ready", body)
+
     def test_runner_injects_and_redacts(self):
         output, errors = StringIO(), StringIO()
         responses = [
