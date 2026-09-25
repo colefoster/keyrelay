@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "keyrelay",
+  "target": "ash",
+  "kind": "systemd",
+  "source": ".",
+  "include": ["keyrelay.py"],
+  "destination": "/opt/keyrelay",
+  "service": "keyrelay.service",
+  "health_url": "https://keyrelay.colefoster.ca/health",
+  "access": "tailnet",
+  "build": [["python3", "-m", "unittest", "discover", "-s", "tests", "-q"]],
+  "exclude": []
+}
