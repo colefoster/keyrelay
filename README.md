@@ -1,16 +1,35 @@
 # Keyrelay
 
-Give a coding agent a credential **without pasting it into chat**. The agent runs a command with `keyrelay.py run`, receives a link, and waits. Open the link on a Tailnet device, review the command, and enter the credential. Keyrelay sends it once to the waiting runner, which passes it to the command through an environment variable or standard input.
+**Give a coding agent a credential without pasting it into chat.**
 
-The broker keeps requests in memory for at most five minutes. It does not persist credentials, use a database, or log HTTP requests. The runner redacts plain-text echoes of the secret from command output. A command can still deliberately transmit or transform a credential, so review the displayed command and use this only with agents you trust to run commands on your machine.
+[Product page](https://getkeyrelay.colefoster.ca) · [Setup](#setup) · [Security model](#security-model)
 
-## Live broker
+The agent starts a command and receives a one-time link. Open it on a Tailnet device, review the command, and enter your token. Keyrelay delivers it once to the waiting runner through an environment variable or standard input.
 
-The broker runs as `keyrelay.service` on ash at **https://keyrelay.colefoster.ca/**. The hostname points to ash's Tailscale IP and nginx listens only there. The broker verifies the connecting Tailscale user with `tailscale whois` and accepts only `cole@thefostersonline.com`.
+- One Python file; standard library only.
+- Private broker authenticated with Tailscale identity.
+- Requests live in memory and expire after five minutes.
+- Plain-text echoes of the credential are redacted from captured command output.
 
-## Install or update on ash
+## Setup
 
-Use a free localhost port. The example uses 8765. Set the email to **your own Tailscale login**.
+You need Python 3.9+ and Tailscale on the broker and client devices. Enable HTTPS in your Tailnet for Tailscale Serve. Run the broker on a trusted machine.
+
+```sh
+git clone https://github.com/colefoster/keyrelay.git
+cd keyrelay
+python3 keyrelay.py serve --email you@example.com
+```
+
+In another terminal, expose the localhost broker to your Tailnet:
+
+```sh
+tailscale serve --bg http://127.0.0.1:8765
+```
+
+Use the HTTPS URL printed by Tailscale as your broker URL. Keep the backend on localhost; only the trusted Tailscale Serve proxy should supply identity headers. **Do not use Tailscale Funnel or a public reverse proxy.**
+
+For a persistent Linux service, edit `keyrelay.service` to use your Tailscale login, then:
 
 ```sh
 sudo install -d /opt/keyrelay
@@ -20,28 +39,47 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now keyrelay.service
 ```
 
-The nginx configuration and certificate renewal units are in `/Users/cole/Dev/ash-infra`. Keep the DNS record **DNS-only** and the nginx listener bound to ash's Tailscale IP. The backend binds only to localhost and refuses requests without a verified Tailnet login.
+The optional `--auth whois` mode is for the maintainer's existing private nginx deployment. It expects a trusted `X-Real-IP` header and the `keyrelay.colefoster.ca` Host header. Use the default Tailscale Serve mode for your own installation.
 
-The broker stays running through systemd while a request is pending. The client can run on any Tailnet device that can reach the private hostname.
+## Use with a coding agent
 
-## Use from Codex or Claude Code
-
-Give the agent a command like this:
+Replace the example URL with your broker's HTTPS URL:
 
 ```sh
-python3 /Users/cole/Dev/keyrelay/keyrelay.py run --url https://keyrelay.colefoster.ca --env GITHUB_TOKEN -- gh api user
+python3 keyrelay.py run \
+  --url https://your-broker.your-tailnet.ts.net \
+  --env GITHUB_TOKEN -- gh api user
 ```
 
-Or for tools that read a token from standard input:
+For a command that accepts its credential on standard input:
 
 ```sh
-python3 /Users/cole/Dev/keyrelay/keyrelay.py run --url https://keyrelay.colefoster.ca --stdin -- gh auth login --with-token
+python3 keyrelay.py run \
+  --url https://your-broker.your-tailnet.ts.net \
+  --stdin -- gh auth login --with-token
 ```
 
-The agent should show you the printed link. Open it, verify the command, enter the credential, and press **Send once**. The runner then executes the command and returns its output with plain-text copies of the secret removed.
+Ask your agent to show you the printed link. Open it, verify the command, enter the credential, and select **Send once**. The waiting command runs and returns its exit status and redacted output. Interactive commands that need a terminal are not supported.
 
-The agent never needs to read, paste, or store the raw credential. If a CLI must persist an authenticated session, that CLI controls its own storage after the handoff. Keyrelay itself stores no reusable key.
+An example instruction for your agent:
 
-## Local smoke test
+> When a command needs a credential, use Keyrelay's `run` command and show me the one-time link. Never ask me to paste credentials into the conversation.
 
-`python3 -m unittest discover -s tests` tests the one-time exchange. The server requires a verified Tailnet client IP, so direct browser access to `localhost:8765` is intentionally denied.
+## Security model
+
+Keyrelay keeps credentials out of the normal chat handoff. **It is not a sandbox or a defense against a malicious agent or command.** Review the displayed command and use it only on trusted machines with agents you trust.
+
+The broker holds requests and submitted secrets in process memory. Expired entries are removed on the next request; expiry is not guaranteed memory erasure. A successful claim deletes the entry. Restarting the broker discards pending requests. Keyrelay does not write credentials to a database or log HTTP requests.
+
+The runner captures stdout and stderr, replacing exact copies of the secret before displaying them. Encoded, transformed, or deliberately transmitted credentials are not covered. The command receives the real credential and can store it; authenticated CLIs may persist sessions. Other software with sufficient access to the broker or runner can read process memory or environments. Use narrowly scoped, short-lived credentials where possible.
+
+Only the configured Tailscale user is allowed to access the broker. All requests by that identity share the same trust boundary; this is a personal handoff tool, not a multi-tenant secret manager.
+
+## Development
+
+```sh
+python3 -m unittest discover -s tests
+python3 -m http.server 8080 --directory site
+```
+
+The public product page is static and collects no credentials. It is deployed to Cloudflare Pages separately from the private broker. See [site deployment](docs/site-deployment.md).
