@@ -1,10 +1,12 @@
 # Keyrelay
 
-**Give a coding agent a credential without pasting it into chat.**
+**Your agent needs an API key, then tells you not to paste it into chat. Keyrelay gives you somewhere else to enter it.**
 
-[Product page](https://getkey.colefoster.ca) · [Setup](#setup) · [Security model](#security-model)
+[Product page](https://keyrelay.colefoster.ca) · [Setup](#setup) · [Security model](#security-model)
 
-The agent starts a command and receives a one-time link. Open it on the same computer, review the command, and enter your token. Keyrelay delivers it once to the waiting command through an environment variable or standard input.
+“Don’t paste your API key here.” Okay. Where, then?
+
+Give your agent Keyrelay. It starts the command and shows you a local link. Open that link, review what will run, and enter the key in your browser. Keyrelay passes it once to the waiting command through an environment variable or standard input, so the agent can keep working without you pasting the key into the conversation.
 
 - Runs locally by default. No account, server setup, or Tailscale required.
 - Starts a temporary loopback-only broker and closes it when the command finishes.
