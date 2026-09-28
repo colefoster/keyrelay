@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "name": "keyrelay",
+  "target": "ash",
+  "domain": "key.colefoster.ca",
+  "access": "tailnet",
+  "kind": "proxy",
+  "upstream": "http://127.0.0.1:8765"
+}
