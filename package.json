@@ -1,7 +1,7 @@
 {
   "name": "keyrelay",
-  "version": "0.1.0",
-  "description": "One-time credential handoffs for coding agents",
+  "version": "0.1.1",
+  "description": "Local, one-time credential handoffs for coding agents. No account required.",
   "bin": { "keyrelay": "bin/keyrelay.cjs" },
   "files": ["bin/keyrelay.cjs", "keyrelay.py", "keyrelay.service"],
   "engines": { "node": ">=18" },
