@@ -1,6 +1,6 @@
 # Public product page
 
-The `site/` directory is a static Cloudflare Pages site at https://getkeyrelay.colefoster.ca. It has no server code, forms, analytics, or third-party runtime requests. Manrope is self-hosted under the included SIL Open Font License.
+The `site/` directory is a static Cloudflare Pages site at https://getkeyrelay.colefoster.ca. The source has no server code, forms, analytics, or third-party runtime requests. Cloudflare may inject its own security challenge scripts at the edge. Manrope is self-hosted under the included SIL Open Font License.
 
 Deploy from the repository root with a Cloudflare API token holding account-level Pages Write permission and the account ID supplied through `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`:
 
