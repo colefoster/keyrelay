@@ -10,7 +10,7 @@ npx wrangler pages deploy site --project-name keyrelay --branch main
 
 This is a direct-upload Pages project. Pushing to GitHub does not deploy it automatically.
 
-The old `getkeyrelay.colefoster.ca` address redirects to the public domain. The private broker is at `key.colefoster.ca`.
+A Cloudflare zone Single Redirect sends `getkeyrelay.colefoster.ca` to the public domain, preserving paths and query strings. This is configured at the zone level because Pages `_redirects` does not support hostname matching. The private broker is at `key.colefoster.ca`.
 
 The custom domain must be registered on the Pages project before creating its CNAME pointing to the project's `pages.dev` hostname.
 
