@@ -76,7 +76,7 @@ class ExchangeTest(unittest.TestCase):
         try:
             url = "http://127.0.0.1:%d/health" % whois.server_port
             with patch.object(keyrelay, "tailnet_login", return_value="owner@example.com") as lookup:
-                req = urllib.request.Request(url, headers={"Host": "keyrelay.colefoster.ca", "X-Real-IP": "100.84.242.24"})
+                req = urllib.request.Request(url, headers={"Host": "key.colefoster.ca", "X-Real-IP": "100.84.242.24"})
                 with urllib.request.urlopen(req) as result:
                     self.assertEqual(result.status, 200)
                 lookup.assert_called_once_with("100.84.242.24")
