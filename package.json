@@ -1,14 +1,32 @@
 {
   "name": "keyrelay",
-  "version": "0.1.1",
-  "description": "Local, one-time credential handoffs for coding agents. No account required.",
-  "bin": { "keyrelay": "bin/keyrelay.cjs" },
-  "files": ["bin/keyrelay.cjs", "keyrelay.py", "keyrelay.service"],
-  "engines": { "node": ">=18" },
-  "repository": { "type": "git", "url": "git+https://github.com/colefoster/keyrelay.git" },
+  "version": "0.1.2",
+  "description": "Agent says not to paste your API key into chat? Give it a local credential handoff with Keyrelay.",
+  "bin": {
+    "keyrelay": "bin/keyrelay.cjs"
+  },
+  "files": [
+    "bin/keyrelay.cjs",
+    "keyrelay.py",
+    "keyrelay.service"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/colefoster/keyrelay.git"
+  },
   "homepage": "https://keyrelay.colefoster.ca",
   "bugs": "https://github.com/colefoster/keyrelay/issues",
-  "keywords": ["credentials", "coding-agents", "tailscale", "cli"],
+  "keywords": [
+    "credentials",
+    "coding-agents",
+    "tailscale",
+    "cli"
+  ],
   "license": "UNLICENSED",
-  "scripts": { "test": "python3 -m unittest discover -s tests" }
+  "scripts": {
+    "test": "python3 -m unittest discover -s tests"
+  }
 }
