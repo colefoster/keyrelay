@@ -11,10 +11,10 @@ Developers working with coding agents that need credentials for CLI commands.
 Hand a credential to a waiting command without pasting it into an agent conversation.
 
 ## Operating Context
-A Python standard-library broker runs privately behind Tailscale. A browser form displays the pending command. A runner injects the submitted secret through an environment variable or stdin.
+A Python standard-library broker runs on localhost by default, with optional Tailscale access. A browser form displays the pending command. A runner injects the submitted secret through an environment variable or stdin.
 
 ## Capabilities and Constraints
-Requests expire after five minutes, live in memory, and are consumed once. Plain-text secret echoes are redacted. This is not a sandbox: trusted commands can transmit or transform credentials. No hosted public broker is offered.
+Requests expire after five minutes, live in memory, and are consumed once. Plain-text secret echoes are redacted. This is not a sandbox: trusted commands can transmit or transform credentials. No hosted public broker is offered. The npm launcher requires Node.js and Python 3.9+; Tailscale is not required for local use.
 
 ## Evidence on Hand
 keyrelay.py, tests/test_keyrelay.py, and an existing private deployment.
