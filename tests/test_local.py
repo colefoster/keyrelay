@@ -3,6 +3,7 @@ import json
 import os
 import re
 import select
+import signal
 import subprocess
 import sys
 import threading
@@ -50,6 +51,25 @@ class LocalSecurityTest(unittest.TestCase):
 
 
 class LocalRunnerTest(unittest.TestCase):
+    @unittest.skipIf(os.name == 'nt', 'POSIX signal delivery')
+    def test_cancel_shuts_down_local_broker(self):
+        child = subprocess.Popen(['node', str(ROOT / 'bin/keyrelay.cjs'), 'run', '--env', 'TEST_KEY', '--', sys.executable, '-c', 'raise SystemExit("must not run")'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            self.assertTrue(select.select([child.stdout], [], [], 10)[0], 'No startup link')
+            line = child.stdout.readline()
+            base = re.search(r'http://127\.0\.0\.1:\d+', line).group(0)
+            child.send_signal(signal.SIGINT)
+            output, errors = child.communicate(timeout=5)
+            self.assertEqual(child.returncode, 130, errors)
+            self.assertNotIn('Traceback', errors)
+            self.assertNotIn('must not run', output + errors)
+            with self.assertRaises(urllib.error.URLError):
+                urllib.request.urlopen(base + '/health', timeout=2)
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.communicate()
+
     def test_npx_launcher_local_exchange_and_shutdown(self):
         for mode in ('env', 'stdin'):
             with self.subTest(mode=mode):
