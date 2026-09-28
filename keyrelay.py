@@ -149,7 +149,7 @@ def handler_factory(allowed_email, auth_mode="serve"):
             if auth_mode == "serve":
                 login = self.headers.get("Tailscale-User-Login")
             else:
-                if self.headers.get("Host") != "keyrelay.colefoster.ca":
+                if self.headers.get("Host") != "key.colefoster.ca":
                     return False
                 login = tailnet_login(self.headers.get("X-Real-IP", ""))
             return (login or "").lower() == allowed_email.lower()

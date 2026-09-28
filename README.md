@@ -2,7 +2,7 @@
 
 **Give a coding agent a credential without pasting it into chat.**
 
-[Product page](https://getkeyrelay.colefoster.ca) · [Setup](#setup) · [Security model](#security-model)
+[Product page](https://getkey.colefoster.ca) · [Setup](#setup) · [Security model](#security-model)
 
 The agent starts a command and receives a one-time link. Open it on the same computer, review the command, and enter your token. Keyrelay delivers it once to the waiting command through an environment variable or standard input.
 
@@ -109,7 +109,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now keyrelay.service
 ```
 
-The optional `--auth whois` mode is for the maintainer's existing private nginx deployment. It expects a trusted `X-Real-IP` header and the `keyrelay.colefoster.ca` Host header. Use the default Tailscale Serve mode for your own installation.
+The optional `--auth whois` mode is for the maintainer's existing private nginx deployment. It expects a trusted `X-Real-IP` header and the `key.colefoster.ca` Host header. Use the default Tailscale Serve mode for your own installation.
 
 ## Security model
 

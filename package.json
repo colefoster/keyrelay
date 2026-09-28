@@ -6,7 +6,7 @@
   "files": ["bin/keyrelay.cjs", "keyrelay.py", "keyrelay.service"],
   "engines": { "node": ">=18" },
   "repository": { "type": "git", "url": "git+https://github.com/colefoster/keyrelay.git" },
-  "homepage": "https://getkeyrelay.colefoster.ca",
+  "homepage": "https://keyrelay.colefoster.ca",
   "bugs": "https://github.com/colefoster/keyrelay/issues",
   "keywords": ["credentials", "coding-agents", "tailscale", "cli"],
   "license": "UNLICENSED",
