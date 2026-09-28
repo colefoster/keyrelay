@@ -14,32 +14,66 @@ The agent starts a command and receives a one-time link. Open it on the same com
 
 ## Setup
 
-Install **Node.js 18+** (includes `npx`) and **Python 3.9+**, then run:
+**Keyrelay does not require a GitHub account, API key, or any other credential to install.** You only supply a credential later, when a command you choose needs one. That credential goes to your local command, not to the Keyrelay website or its maintainer.
+
+Install **Node.js 18+** (includes `npx`) and **Python 3.9+**, then check the CLI:
+
+```sh
+npx keyrelay --help
+```
+
+`npx` downloads the launcher and bundled Python implementation. This command displays help; it does not request a credential. You do not need to clone this repository, start a server, configure networking, or install Tailscale.
+
+If you prefer a permanent command:
+
+```sh
+npm install -g keyrelay
+keyrelay --help
+```
+
+### Try it with a made-up value
+
+This demo needs no account or real secret. It runs a local Node.js command that confirms it received a value without printing that value:
+
+```sh
+npx keyrelay run --env DEMO_TOKEN -- node -e "console.log(process.env.DEMO_TOKEN ? 'Handoff complete.' : 'No value received.')"
+```
+
+Open the printed `http://127.0.0.1:…/r/…` link **on the same computer**, review the command, enter **`demo-value`**, and select **Send once**. The terminal prints `Handoff complete.` and the temporary broker shuts down.
+
+The link expires after five minutes; Ctrl+C cancels the handoff. Keyrelay prints the link rather than opening a browser automatically.
+
+## Use with a coding agent
+
+Add this to your agent instructions:
+
+> When a command needs a credential, run it with `npx keyrelay run --env VARIABLE -- COMMAND` (or `--stdin`) and show me the printed one-time link. Replace VARIABLE with the environment variable the tool expects and COMMAND with the actual command. Leave the runner waiting while I enter the credential in my browser. Never ask me to paste credentials into the conversation. The link opens on the computer running the command; use a configured Tailscale broker with `--url` for remote agents.
+
+Keyrelay hands a credential to the command you specify. It does not create API keys or decide which permissions a tool needs. Install the target tool separately and use a credential for that tool only when its task requires one.
+
+For example, **only if you want a command to access GitHub using a token**, and already have the GitHub CLI installed:
 
 ```sh
 npx keyrelay run --env GITHUB_TOKEN -- gh api user
 ```
 
-`npx` downloads the launcher and bundled Python implementation. You do not need to clone this repository, start a server, or configure networking. The tool you run (`gh` in this example) must already be installed.
+That token is passed to `gh`. GitHub access is an optional example, not a Keyrelay setup step. If `gh` is already authenticated, you can run `gh api user` directly.
 
-Open the printed `http://127.0.0.1:…/r/…` link **on the same computer**. Review the command, enter your token, and select **Send once**. The command runs, then the local broker shuts down. The link expires after five minutes; Ctrl+C cancels it.
+For a tool that accepts a credential on standard input, use `--stdin` instead of `--env VARIABLE`. For example, `gh auth login --with-token` accepts stdin and persists the resulting login; the target tool controls that storage.
 
-To install a persistent CLI instead:
+The runner returns the command's exit status and redacted output after the command finishes. Interactive commands that need a terminal are not supported. Exact secret echoes are redacted; transformed or deliberately transmitted secrets are not.
 
-```sh
-npm install -g keyrelay
-keyrelay run --env GITHUB_TOKEN -- gh api user
-```
+### Without Node.js
 
-For a command that accepts its credential on standard input:
+Clone the repository and use the Python CLI directly:
 
 ```sh
-npx keyrelay run --stdin -- gh auth login --with-token
+git clone https://github.com/colefoster/keyrelay.git
+cd keyrelay
+python3 keyrelay.py --help
 ```
 
-The runner returns the command's exit status and redacted output. Interactive commands that need a terminal are not supported.
-
-Without Node.js, clone the repository and use `python3 keyrelay.py run --env GITHUB_TOKEN -- gh api user` instead.
+Use `python3 keyrelay.py run` with the same arguments as `npx keyrelay run`.
 
 ## Optional: use another device with Tailscale
 
@@ -60,12 +94,12 @@ Use the HTTPS URL printed by Tailscale:
 ```sh
 npx keyrelay run \
   --url https://your-broker.your-tailnet.ts.net \
-  --env GITHUB_TOKEN -- gh api user
+  --env DEMO_TOKEN -- python3 -c "print('Handoff complete.')"
 ```
 
 Keep the backend on localhost; only the trusted Tailscale Serve proxy should supply identity headers. **Do not use Tailscale Funnel or a public reverse proxy.**
 
-For a persistent Linux service, edit `keyrelay.service` to use your Tailscale login, then:
+For a persistent Linux service, first clone this repository and enter its directory (as shown above). Edit `keyrelay.service` to replace `you@example.com` with your Tailscale login, then run:
 
 ```sh
 sudo install -d /opt/keyrelay
@@ -76,12 +110,6 @@ sudo systemctl enable --now keyrelay.service
 ```
 
 The optional `--auth whois` mode is for the maintainer's existing private nginx deployment. It expects a trusted `X-Real-IP` header and the `keyrelay.colefoster.ca` Host header. Use the default Tailscale Serve mode for your own installation.
-
-## Use with a coding agent
-
-Add this to your agent instructions:
-
-> When a command needs a credential, run it with `npx keyrelay run --env VARIABLE -- COMMAND` (or `--stdin`) and show me the printed one-time link. Leave the runner waiting while I enter the credential in my browser. Never ask me to paste credentials into the conversation. The link opens on the computer running the command; use a configured Tailscale broker with `--url` for remote agents.
 
 ## Security model
 
@@ -102,4 +130,4 @@ python3 -m unittest discover -s tests
 python3 -m http.server 8080 --directory site
 ```
 
-The public product page is static and collects no credentials. It is deployed to Cloudflare Pages separately from the private broker. See [site deployment](docs/site-deployment.md).
+The public product page is static and collects no credentials. It is deployed to Cloudflare Pages separately from the private broker. See [site deployment](https://github.com/colefoster/keyrelay/blob/main/docs/site-deployment.md).
