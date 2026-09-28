@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-time, tailnet-only credential handoff for CLI commands."""
+"""One-time credential handoff for CLI commands, locally or over a Tailnet."""
 
 import argparse
 import html
@@ -142,6 +142,10 @@ def handler_factory(allowed_email, auth_mode="serve"):
             pass
 
         def authorized(self):
+            if auth_mode == "local":
+                # Exact authority prevents DNS rebinding; do not trust proxy headers.
+                expected = "127.0.0.1:%d" % self.server.server_port
+                return self.client_address[0] == "127.0.0.1" and self.headers.get("Host") == expected
             if auth_mode == "serve":
                 login = self.headers.get("Tailscale-User-Login")
             else:
@@ -161,7 +165,7 @@ def handler_factory(allowed_email, auth_mode="serve"):
 
         def route(self):
             if not self.authorized():
-                return reply(self, 403, {"error": "Tailscale user is not allowed"})
+                return reply(self, 403, {"error": "Local access denied" if auth_mode == "local" else "Tailscale user is not allowed"})
             origin = self.headers.get("Origin")
             if self.command == "POST" and origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
                 return reply(self, 403, {"error": "Invalid origin"})
@@ -238,6 +242,20 @@ def run(args):
         raise RuntimeError("Provide a command after --")
     if args.env and not args.env.isidentifier():
         raise RuntimeError("Environment variable name must be an identifier")
+    if not args.url:
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler_factory(None, "local"))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        local_args = argparse.Namespace(**vars(args))
+        local_args.url = "http://127.0.0.1:%d" % server.server_port
+        local_args.allow_http = True
+        try:
+            return run(local_args)
+        finally:
+            server.shutdown()
+            server.server_close()
+            with lock:
+                requests.clear()
     base = args.url.rstrip("/")
     if not base.startswith("https://") and not (args.allow_http and base.startswith("http://127.0.0.1:")):
         raise RuntimeError("Broker URL must use HTTPS")
@@ -279,7 +297,7 @@ def main():
     serve.add_argument("--port", type=int, default=8765)
     serve.add_argument("--auth", choices=("serve", "whois"), default="serve", help="Identity source: Tailscale Serve header or nginx client IP")
     runner = sub.add_parser("run", help="Request a secret and run a command")
-    runner.add_argument("--url", required=True, help="Private broker HTTPS URL")
+    runner.add_argument("--url", help="Optional private broker HTTPS URL; omit for a temporary local broker")
     mode = runner.add_mutually_exclusive_group(required=True)
     mode.add_argument("--env", help="Inject as this environment variable")
     mode.add_argument("--stdin", action="store_true", help="Pass secret to command on standard input")
@@ -295,6 +313,8 @@ def main():
             server.serve_forever()
         else:
             return run(args)
+    except KeyboardInterrupt:
+        return 130
     except (RuntimeError, urllib.error.URLError, OSError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
