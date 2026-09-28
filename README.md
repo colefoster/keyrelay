@@ -17,7 +17,7 @@ The agent starts a command and receives a one-time link. Open it on the same com
 Install **Node.js 18+** (includes `npx`) and **Python 3.9+**, then run:
 
 ```sh
-npx github:colefoster/keyrelay run --env GITHUB_TOKEN -- gh api user
+npx keyrelay run --env GITHUB_TOKEN -- gh api user
 ```
 
 `npx` downloads the launcher and bundled Python implementation. You do not need to clone this repository, start a server, or configure networking. The tool you run (`gh` in this example) must already be installed.
@@ -27,14 +27,14 @@ Open the printed `http://127.0.0.1:…/r/…` link **on the same computer**. Rev
 To install a persistent CLI instead:
 
 ```sh
-npm install -g github:colefoster/keyrelay
+npm install -g keyrelay
 keyrelay run --env GITHUB_TOKEN -- gh api user
 ```
 
 For a command that accepts its credential on standard input:
 
 ```sh
-npx github:colefoster/keyrelay run --stdin -- gh auth login --with-token
+npx keyrelay run --stdin -- gh auth login --with-token
 ```
 
 The runner returns the command's exit status and redacted output. Interactive commands that need a terminal are not supported.
@@ -46,7 +46,7 @@ Without Node.js, clone the repository and use `python3 keyrelay.py run --env GIT
 Local links work only on the machine running the command. To enter credentials from your phone or another computer, run a persistent broker behind Tailscale. You need Tailscale on the broker and client devices and HTTPS enabled in your Tailnet.
 
 ```sh
-npx github:colefoster/keyrelay serve --email you@example.com
+npx keyrelay serve --email you@example.com
 ```
 
 In another terminal:
@@ -58,7 +58,7 @@ tailscale serve --bg http://127.0.0.1:8765
 Use the HTTPS URL printed by Tailscale:
 
 ```sh
-npx github:colefoster/keyrelay run \
+npx keyrelay run \
   --url https://your-broker.your-tailnet.ts.net \
   --env GITHUB_TOKEN -- gh api user
 ```
@@ -81,7 +81,7 @@ The optional `--auth whois` mode is for the maintainer's existing private nginx 
 
 Add this to your agent instructions:
 
-> When a command needs a credential, run it with `npx github:colefoster/keyrelay run --env VARIABLE -- COMMAND` (or `--stdin`) and show me the printed one-time link. Leave the runner waiting while I enter the credential in my browser. Never ask me to paste credentials into the conversation. The link opens on the computer running the command; use a configured Tailscale broker with `--url` for remote agents.
+> When a command needs a credential, run it with `npx keyrelay run --env VARIABLE -- COMMAND` (or `--stdin`) and show me the printed one-time link. Leave the runner waiting while I enter the credential in my browser. Never ask me to paste credentials into the conversation. The link opens on the computer running the command; use a configured Tailscale broker with `--url` for remote agents.
 
 ## Security model
 
