@@ -6,7 +6,9 @@ import select
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
+import time
 import unittest
 import urllib.request
 from pathlib import Path
@@ -84,6 +86,45 @@ class LocalRunnerTest(unittest.TestCase):
             if child.poll() is None:
                 child.kill()
                 child.communicate()
+
+    @unittest.skipIf(os.name == 'nt', 'POSIX signal delivery')
+    def test_sigterm_during_command_stops_command(self):
+        launchers = {'node': ['node', str(ROOT / 'bin/keyrelay.cjs')], 'python': [sys.executable, str(ROOT / 'keyrelay.py')]}
+        for name, launcher in launchers.items():
+            with self.subTest(launcher=name), tempfile.TemporaryDirectory() as directory:
+                pidfile = os.path.join(directory, 'pid')
+                code = 'import os,sys,time; open(sys.argv[1], "w").write(str(os.getpid())); time.sleep(30)'
+                child = subprocess.Popen([*launcher, 'run', '--env', 'TEST_KEY', '--', sys.executable, '-c', code, pidfile], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                command_pid = None
+                try:
+                    self.assertTrue(select.select([child.stdout], [], [], 10)[0], 'No startup link')
+                    url = re.match(r'Open (http://127\.0\.0\.1:\d+/r/[\w-]+)', child.stdout.readline()).group(1)
+                    base = url.split('/r/')[0]
+                    req = urllib.request.Request(url + '/submit', data=json.dumps({'secret': 'local-test-secret'}).encode(), headers={'Content-Type': 'application/json', 'Origin': base})
+                    urllib.request.urlopen(req, timeout=5).close()
+                    deadline = time.monotonic() + 10
+                    while not command_pid and time.monotonic() < deadline:
+                        if os.path.exists(pidfile):
+                            command_pid = int(Path(pidfile).read_text() or 0)
+                        time.sleep(0.05)
+                    self.assertTrue(command_pid, 'Command did not start')
+                    child.send_signal(signal.SIGTERM)
+                    _, errors = child.communicate(timeout=5)
+                    self.assertEqual(child.returncode, 128 + signal.SIGTERM, errors)
+                    self.assertNotIn('Traceback', errors)
+                    with self.assertRaises(ProcessLookupError):
+                        os.kill(command_pid, 0)
+                    with self.assertRaises(urllib.error.URLError):
+                        urllib.request.urlopen(base + '/health', timeout=2)
+                finally:
+                    if child.poll() is None:
+                        child.kill()
+                        child.communicate()
+                    if command_pid:
+                        try:
+                            os.kill(command_pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
 
     def test_npx_launcher_local_exchange_and_shutdown(self):
         for mode in ('env', 'stdin'):
