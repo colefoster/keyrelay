@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 const { spawn, spawnSync } = require('node:child_process');
+const os = require('node:os');
 const path = require('node:path');
 const candidates = process.platform === 'win32'
   ? [['py', '-3'], ['python3'], ['python']]
@@ -24,5 +25,5 @@ child.on('error', error => {
   process.exitCode = 1;
 });
 child.on('exit', (code, signal) => {
-  process.exitCode = code ?? (signal === 'SIGINT' ? 130 : 1);
+  process.exitCode = code ?? (signal in os.constants.signals ? 128 + os.constants.signals[signal] : 1);
 });

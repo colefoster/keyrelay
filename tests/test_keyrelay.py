@@ -1,4 +1,7 @@
 import json
+import os
+import signal
+import sys
 import threading
 import unittest
 import urllib.error
@@ -6,7 +9,7 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from argparse import Namespace
 from contextlib import redirect_stdout, redirect_stderr
-from io import StringIO
+from io import BytesIO, TextIOWrapper
 from unittest.mock import patch
 
 import keyrelay
@@ -88,24 +91,42 @@ class ExchangeTest(unittest.TestCase):
             whois.shutdown()
             whois.server_close()
 
-    def test_runner_injects_and_redacts(self):
-        output, errors = StringIO(), StringIO()
+    def run_with_fake_broker(self, command):
+        output, errors = TextIOWrapper(BytesIO()), TextIOWrapper(BytesIO())
         responses = [
             {"id": "request", "token": "claim", "expires_in": 300},
             {"status": "ready"},
             {"secret": "test-secret"},
         ]
+        args = Namespace(url="https://ash.example.ts.net", env="TOKEN", stdin=False, allow_http=False, command=["--", *command])
+        with patch.object(keyrelay, "api", side_effect=responses), redirect_stdout(output), redirect_stderr(errors):
+            code = keyrelay.run(args)
+        output.flush()
+        errors.flush()
+        return code, output.buffer.getvalue(), errors.buffer.getvalue()
 
+    def test_runner_injects_and_redacts(self):
         def fake_command(command, **kwargs):
             self.assertEqual(command, ["tool"])
             self.assertEqual(kwargs["env"]["TOKEN"], "test-secret")
-            return Namespace(stdout="value=test-secret\n", stderr="", returncode=0)
+            return Namespace(stdout=b"value=test-secret\n", stderr=b"", returncode=0)
 
-        args = Namespace(url="https://ash.example.ts.net", env="TOKEN", stdin=False, allow_http=False, command=["--", "tool"])
-        with patch.object(keyrelay, "api", side_effect=responses), patch.object(keyrelay.subprocess, "run", side_effect=fake_command), redirect_stdout(output), redirect_stderr(errors):
-            self.assertEqual(keyrelay.run(args), 0)
-        self.assertIn("value=[REDACTED]", output.getvalue())
-        self.assertNotIn("test-secret", output.getvalue() + errors.getvalue())
+        with patch.object(keyrelay.subprocess, "run", side_effect=fake_command):
+            code, output, errors = self.run_with_fake_broker(["tool"])
+        self.assertEqual(code, 0)
+        self.assertIn(b"value=[REDACTED]", output)
+        self.assertNotIn(b"test-secret", output + errors)
+
+    def test_runner_passes_through_non_utf8_output(self):
+        code, output, errors = self.run_with_fake_broker([sys.executable, "-c", "import os,sys; sys.stdout.buffer.write(b'\\xff ' + os.environ['TOKEN'].encode() + b'\\n'); sys.exit(3)"])
+        self.assertEqual(code, 3)
+        self.assertIn(b"\xff [REDACTED]\n", output)
+        self.assertNotIn(b"test-secret", output + errors)
+
+    @unittest.skipIf(os.name == "nt", "POSIX signals")
+    def test_runner_reports_signal_like_a_shell(self):
+        code, _, _ = self.run_with_fake_broker([sys.executable, "-c", "import os,signal; os.kill(os.getpid(), signal.SIGTERM)"])
+        self.assertEqual(code, 128 + signal.SIGTERM)
 
 
 if __name__ == "__main__":
