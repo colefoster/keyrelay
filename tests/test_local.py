@@ -70,6 +70,21 @@ class LocalRunnerTest(unittest.TestCase):
                 child.kill()
                 child.communicate()
 
+    @unittest.skipIf(os.name == 'nt', 'POSIX signal delivery')
+    def test_launcher_reports_forwarded_sigterm(self):
+        child = subprocess.Popen(['node', str(ROOT / 'bin/keyrelay.cjs'), 'run', '--env', 'TEST_KEY', '--', sys.executable, '-c', 'raise SystemExit("must not run")'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            self.assertTrue(select.select([child.stdout], [], [], 10)[0], 'No startup link')
+            child.stdout.readline()
+            child.send_signal(signal.SIGTERM)
+            output, errors = child.communicate(timeout=5)
+            self.assertEqual(child.returncode, 128 + signal.SIGTERM, errors)
+            self.assertNotIn('must not run', output + errors)
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.communicate()
+
     def test_npx_launcher_local_exchange_and_shutdown(self):
         for mode in ('env', 'stdin'):
             with self.subTest(mode=mode):
