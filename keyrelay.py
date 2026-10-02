@@ -8,6 +8,7 @@ import json
 import os
 import secrets
 import shlex
+import signal
 import subprocess
 import sys
 import threading
@@ -236,6 +237,14 @@ def handler_factory(allowed_email, auth_mode="serve"):
     return Handler
 
 
+class Terminated(Exception):
+    pass
+
+
+def terminate(signum, frame):
+    raise Terminated()
+
+
 def run(args):
     command = args.command[1:] if args.command and args.command[0] == "--" else args.command
     if not command:
@@ -277,6 +286,8 @@ def run(args):
     env = os.environ.copy()
     if args.env:
         env[args.env] = secret
+    # Raising inside subprocess.run makes it kill and reap the command instead of orphaning it.
+    previous_sigterm = signal.signal(signal.SIGTERM, terminate)
     try:
         # Capture bytes so non-UTF-8 output cannot crash the runner after the secret is used.
         result = subprocess.run(command, input=(secret + "\n").encode() if not args.env else None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
@@ -288,6 +299,7 @@ def run(args):
         # Report a signal-terminated command the way a shell does (128 + signal number).
         return 128 - result.returncode if result.returncode < 0 else result.returncode
     finally:
+        signal.signal(signal.SIGTERM, previous_sigterm)
         del secret
         if args.env:
             env.pop(args.env, None)
@@ -319,6 +331,8 @@ def main():
             return run(args)
     except KeyboardInterrupt:
         return 130
+    except Terminated:
+        return 128 + signal.SIGTERM
     except (RuntimeError, urllib.error.URLError, OSError) as exc:
         print(str(exc), file=sys.stderr)
         return 1

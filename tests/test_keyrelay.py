@@ -99,8 +99,10 @@ class ExchangeTest(unittest.TestCase):
             {"secret": "test-secret"},
         ]
         args = Namespace(url="https://ash.example.ts.net", env="TOKEN", stdin=False, allow_http=False, command=["--", *command])
+        previous_sigterm = signal.getsignal(signal.SIGTERM)
         with patch.object(keyrelay, "api", side_effect=responses), redirect_stdout(output), redirect_stderr(errors):
             code = keyrelay.run(args)
+        self.assertIs(signal.getsignal(signal.SIGTERM), previous_sigterm)
         output.flush()
         errors.flush()
         return code, output.buffer.getvalue(), errors.buffer.getvalue()
