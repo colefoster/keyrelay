@@ -91,12 +91,12 @@ class ExchangeTest(unittest.TestCase):
             whois.shutdown()
             whois.server_close()
 
-    def run_with_fake_broker(self, command):
+    def run_with_fake_broker(self, command, secret="test-secret"):
         output, errors = TextIOWrapper(BytesIO()), TextIOWrapper(BytesIO())
         responses = [
             {"id": "request", "token": "claim", "expires_in": 300},
             {"status": "ready"},
-            {"secret": "test-secret"},
+            {"secret": secret},
         ]
         args = Namespace(url="https://ash.example.ts.net", env="TOKEN", stdin=False, allow_http=False, command=["--", *command])
         previous_sigterm = signal.getsignal(signal.SIGTERM)
@@ -124,6 +124,15 @@ class ExchangeTest(unittest.TestCase):
         self.assertEqual(code, 3)
         self.assertIn(b"\xff [REDACTED]\n", output)
         self.assertNotIn(b"test-secret", output + errors)
+
+    @unittest.skipIf(os.name == "nt", "POSIX environments use surrogateescape")
+    def test_runner_redacts_env_secret_with_lone_surrogate(self):
+        # JSON permits lone surrogates; POSIX injects them into the environment as raw bytes.
+        secret = json.loads('"fake-\\udcff"')
+        code, output, errors = self.run_with_fake_broker([sys.executable, "-c", "import os,sys; sys.stdout.buffer.write(b'ok ' + os.environb[b'TOKEN'] + b'\\n'); sys.exit(4)"], secret)
+        self.assertEqual(code, 4)
+        self.assertEqual(output.splitlines()[-1], b"ok [REDACTED]")
+        self.assertNotIn(b"fake-\xff", output + errors)
 
     @unittest.skipIf(os.name == "nt", "POSIX signals")
     def test_runner_reports_signal_like_a_shell(self):

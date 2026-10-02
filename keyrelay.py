@@ -292,9 +292,11 @@ def run(args):
         # Capture bytes so non-UTF-8 output cannot crash the runner after the secret is used.
         result = subprocess.run(command, input=(secret + "\n").encode() if not args.env else None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         # Redact accidental plain-text echoes before output reaches the model context.
+        # Match the bytes the command received; POSIX environments use surrogateescape.
+        echoed = os.fsencode(secret) if args.env else secret.encode()
         for stream, data in ((sys.stdout, result.stdout), (sys.stderr, result.stderr)):
             stream.flush()
-            stream.buffer.write(data.replace(secret.encode(), b"[REDACTED]"))
+            stream.buffer.write(data.replace(echoed, b"[REDACTED]"))
             stream.flush()
         # Report a signal-terminated command the way a shell does (128 + signal number).
         return 128 - result.returncode if result.returncode < 0 else result.returncode
