@@ -61,41 +61,81 @@ def api(url, method="GET", data=None, token=None):
 def page(item, request_id):
     status = "Ready for a secret" if item["status"] == "waiting" else "This request is no longer available"
     active = item["status"] == "waiting"
+    intro = "Review the command before supplying the secret. The request expires after five minutes." if active else "A secret was already sent for this request. Check your terminal; if you need to try again, ask your agent for a new link."
     form = """
       <form id="form" autocomplete="off">
         <label for="secret">Token or key</label>
-        <input id="secret" type="password" autocomplete="off" spellcheck="false" autofocus required>
+        <input id="secret" type="password" autocomplete="off" spellcheck="false" autofocus required aria-describedby="hint">
+        <p id="hint" class="hint">Sent once, only to this request. The field clears after every attempt.</p>
         <button type="submit">Send once</button>
       </form>
-      <p id="message" role="status"></p>
+      <p id="message" role="status" tabindex="-1"></p>
     """ if active else ""
     script = """
       <script>
       const form = document.getElementById('form');
+      const message = document.getElementById('message');
+      let sending = false;
+      function show(text, error) {
+        message.textContent = text;
+        message.classList.toggle('error', error);
+      }
       if (form) form.addEventListener('submit', async event => {
         event.preventDefault();
+        if (sending) return;
+        sending = true;
+        const input = document.getElementById('secret');
         const button = form.querySelector('button');
+        const secret = input.value;
+        // Clear before sending so no outcome leaves the secret in the page.
+        input.value = '';
+        // Disabled so nothing typed while in flight stays in the field afterward.
+        input.disabled = true;
         button.disabled = true;
-        const secret = document.getElementById('secret').value;
+        button.textContent = 'Sending…';
+        show('Sending…', false);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        let response = null;
         try {
-          const response = await fetch(location.pathname + '/submit', {
+          response = await fetch(location.pathname + '/submit', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({secret})
+            body: JSON.stringify({secret}), signal: controller.signal
           });
-          if (!response.ok) throw new Error((await response.json()).error);
-          document.getElementById('secret').value = '';
-          form.remove();
-          document.getElementById('message').textContent = 'Sent. You can close this tab.';
         } catch (error) {
-          button.disabled = false;
-          document.getElementById('message').textContent = error.message;
+          // Network failure or timeout: the broker may still have accepted it.
+        } finally {
+          clearTimeout(timer);
         }
+        sending = false;
+        if (response && response.ok) {
+          form.remove();
+          document.querySelector('h1').textContent = 'Secret sent';
+          document.getElementById('intro').textContent = 'Keyrelay accepted the secret for this request. Check your terminal for the command result.';
+          document.title = 'Secret sent · Keyrelay';
+          show('Sent. The command in your terminal can continue. You can close this tab.', false);
+          message.focus();
+          return;
+        }
+        input.disabled = false;
+        button.disabled = false;
+        button.textContent = 'Send once';
+        const status = response ? response.status : 0;
+        show(
+          status === 0 ? 'Could not confirm delivery. It may have arrived: check your terminal before sending again, or reload this page to see whether the request is still waiting.'
+          : status === 400 ? 'Not accepted. This request may already have a secret, or the value was empty or longer than 16,384 characters. Reload this page to check whether it is still waiting.'
+          : status === 404 ? 'This request expired or was already completed. Ask your agent for a new link.'
+          : status === 403 ? 'Access denied. Open the link on the computer running the command, or with the Tailscale account the broker allows.'
+          : 'Not sent (error ' + status + '). Reload this page to check whether the request is still waiting.',
+          true);
+        input.focus();
       });
       </script>
     """ if active else ""
     return """<!doctype html><html lang="en"><meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>Keyrelay</title><style>
+      <meta name="robots" content="noindex,nofollow">
+      <title>""" + html.escape(status) + """ · Keyrelay</title><style>
       body{background:#101820;color:#f1f5f9;font:16px system-ui;margin:0;min-height:100vh;display:grid;place-items:center}
       main{box-sizing:border-box;width:min(34rem,100%);padding:2rem}
       .eyebrow{color:#67e8f9;font-size:.85rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
@@ -103,9 +143,10 @@ def page(item, request_id):
       dt{color:#94a3b8;font-size:.85rem;margin-top:.8rem}dt:first-child{margin-top:0}dd{margin:.2rem 0 0;font-family:ui-monospace,monospace}
       label{display:block;margin:1.4rem 0 .5rem}input,button{box-sizing:border-box;width:100%;padding:.85rem;border-radius:8px;font:inherit}
       input{background:#fff;border:0;color:#111827}button{background:#67e8f9;border:0;color:#082f49;font-weight:700;margin-top:.8rem;cursor:pointer}
-      button:disabled{opacity:.5}p{color:#cbd5e1;line-height:1.5}#message{color:#67e8f9}
+      button:disabled{opacity:.5;cursor:wait}p{color:#cbd5e1;line-height:1.5}#message{color:#67e8f9}#message.error{color:#fca5a5}
+      .hint{font-size:.85rem;margin:.5rem 0 0}input:focus,button:focus-visible,#message:focus-visible{outline:3px solid #67e8f9;outline-offset:3px}
       </style><main><div class="eyebrow">One-time credential handoff</div>
-      <h1>""" + html.escape(status) + """</h1><p>Review the command before supplying the secret. The request expires after five minutes.</p>
+      <h1>""" + html.escape(status) + """</h1><p id="intro">""" + intro + """</p>
       <dl><dt>Environment variable / input</dt><dd>""" + html.escape(item["target"]) + """</dd>
       <dt>Command</dt><dd>""" + html.escape(item["command"]) + """</dd>
       <dt>Request</dt><dd>""" + html.escape(request_id) + """</dd></dl>""" + form + script + "</main></html>"
@@ -114,12 +155,13 @@ def page(item, request_id):
 def home_page():
     return """<!doctype html><html lang="en"><meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta name="robots" content="noindex,nofollow">
       <title>Keyrelay</title><style>
       body{background:#101820;color:#f1f5f9;font:16px system-ui;margin:0;min-height:100vh;display:grid;place-items:center}
       main{box-sizing:border-box;width:min(34rem,100%);padding:2rem}
       span{color:#67e8f9;font-size:.85rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
       h1{font-size:2rem;margin:.4rem 0 1rem}p{color:#cbd5e1;line-height:1.6}
-      </style><main><span>Tailnet only</span><h1>Keyrelay is ready</h1>
+      </style><main><span>One-time credential handoff</span><h1>Keyrelay is ready</h1>
       <p>Ask your coding agent to use Keyrelay when a command needs a token or key. It will give you a one-time link to enter the credential here.</p>
       </main></html>"""
 
