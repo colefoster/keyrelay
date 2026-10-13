@@ -6,6 +6,8 @@
 
 “Don’t paste your API key here.” Okay. Where, then?
 
+![Keyrelay demo: an agent requests a key, you enter it in the browser](docs/keyrelay-demo.gif)
+
 Give your agent Keyrelay. It starts the command and shows you a local link. Open that link, review what will run, and enter the key in your browser. Keyrelay passes it once to the waiting command through an environment variable or standard input, so the agent can keep working without you pasting the key into the conversation.
 
 - Runs locally by default. No account, server setup, or Tailscale required.
@@ -133,3 +135,7 @@ python3 -m http.server 8080 --directory site
 ```
 
 The public product page is static and collects no credentials. It is deployed to Cloudflare Pages separately from the private broker. See [site deployment](https://github.com/colefoster/keyrelay/blob/main/docs/site-deployment.md).
+
+## License
+
+[MIT](LICENSE) © 2026 Cole Foster
