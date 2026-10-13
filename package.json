@@ -1,6 +1,6 @@
 {
   "name": "keyrelay",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Agent says not to paste your API key into chat? Give it a local credential handoff with Keyrelay.",
   "bin": {
     "keyrelay": "bin/keyrelay.cjs"
