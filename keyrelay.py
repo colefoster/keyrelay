@@ -62,6 +62,7 @@ def page(item, request_id):
     status = "Ready for a secret" if item["status"] == "waiting" else "This request is no longer available"
     active = item["status"] == "waiting"
     intro = "Review the command before supplying the secret. The request expires after five minutes." if active else "A secret was already sent for this request. Check your terminal; if you need to try again, ask your agent for a new link."
+    fields = item.get("fields", [])
     form = """
       <form id="form" autocomplete="off">
         <label for="secret">Token or key</label>
@@ -132,6 +133,19 @@ def page(item, request_id):
       });
       </script>
     """ if active else ""
+    if active and fields:
+        inputs = "\n".join(
+            '<label for="field-%d">%s</label><input id="field-%d" data-name="%s" type="password" autocomplete="off" spellcheck="false" required aria-describedby="hint">'
+            % (i, html.escape(field["label"]), i, html.escape(field["name"], quote=True))
+            for i, field in enumerate(fields))
+        start = form.index('        <label for="secret">')
+        end = form.index('        <p id="hint"', start)
+        form = form[:start] + inputs + "\n" + form[end:]
+        script = script.replace("const input = document.getElementById('secret');", "const inputs = [...form.querySelectorAll('input')]; const input = inputs[0];")
+        script = script.replace("const secret = input.value;", "const secret = JSON.stringify(Object.fromEntries(inputs.map(i => [i.dataset.name, i.value])));")
+        script = script.replace("input.value = '';", "inputs.forEach(i => { i.value = ''; });")
+        script = script.replace("input.disabled = true;", "inputs.forEach(i => { i.disabled = true; });")
+        script = script.replace("input.disabled = false;", "inputs.forEach(i => { i.disabled = false; });")
     return """<!doctype html><html lang="en"><meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       <meta name="robots" content="noindex,nofollow">
@@ -223,14 +237,22 @@ def handler_factory(allowed_email, auth_mode="serve"):
                     return reply(self, 400, {"error": "Invalid request"})
                 if not 0 < len(body["command"]) <= 2000 or not 0 < len(body["target"]) <= 100:
                     return reply(self, 400, {"error": "Invalid request"})
+                fields = body.get("fields", [])
+                if (not isinstance(fields, list) or len(fields) > 16 or any(
+                    not isinstance(f, dict) or set(f) != {"name", "label"}
+                    or not isinstance(f["name"], str) or not f["name"].isascii()
+                    or not f["name"].isidentifier() or len(f["name"]) > 100
+                    or not isinstance(f["label"], str) or not 0 < len(f["label"]) <= 100
+                    for f in fields) or len({f["name"] for f in fields}) != len(fields)):
+                    return reply(self, 400, {"error": "Invalid fields"})
                 request_id = secrets.token_urlsafe(18)
                 token = secrets.token_urlsafe(32)
                 with lock:
                     self.cleanup()
                     if len(requests) >= 100:
                         return reply(self, 429, {"error": "Too many pending requests"})
-                    requests[request_id] = {"token": token, "secret": None, "status": "waiting", "expires": time.monotonic() + TTL, "command": body["command"], "target": body["target"]}
-                return reply(self, 201, {"id": request_id, "token": token, "expires_in": TTL})
+                    requests[request_id] = {"token": token, "secret": None, "status": "waiting", "expires": time.monotonic() + TTL, "command": body["command"], "target": body["target"], "fields": fields}
+                return reply(self, 201, {"id": request_id, "token": token, "expires_in": TTL, "field_count": len(fields)})
             parts = path.strip("/").split("/")
             if len(parts) >= 2 and parts[0] == "r":
                 request_id = parts[1]
@@ -245,6 +267,14 @@ def handler_factory(allowed_email, auth_mode="serve"):
                         body = self.read_json()
                         if item["status"] != "waiting" or not isinstance(body, dict) or not isinstance(body.get("secret"), str) or not 0 < len(body["secret"]) <= 16384:
                             return reply(self, 400, {"error": "Invalid or already used request"})
+                        if item.get("fields"):
+                            try:
+                                values = json.loads(body["secret"])
+                                if (not isinstance(values, dict) or set(values) != {f["name"] for f in item["fields"]}
+                                    or any(not isinstance(v, str) or not v or "\x00" in v for v in values.values())):
+                                    raise ValueError()
+                            except (ValueError, TypeError):
+                                return reply(self, 400, {"error": "All credential fields are required"})
                         item["secret"] = body["secret"]
                         item["status"] = "ready"
                         return reply(self, 200, {"ok": True})
@@ -312,7 +342,15 @@ def run(args):
         raise RuntimeError("Broker URL must use HTTPS")
     target = args.env or "standard input"
     display = shlex.join(command)
-    created = api(base + "/api/requests", "POST", {"command": display, "target": target})
+    fields = []
+    for specification in getattr(args, "field", []) or []:
+        name, separator, label = specification.partition("=")
+        if not separator:
+            raise RuntimeError("Fields use NAME=Label")
+        fields.append({"name": name, "label": label})
+    created = api(base + "/api/requests", "POST", {"command": display, "target": target, "fields": fields})
+    if fields and created.get("field_count") != len(fields):
+        raise RuntimeError("Broker does not support labeled fields; update the broker first")
     request_id, token = created["id"], created["token"]
     print("Open " + base + "/r/" + request_id, flush=True)
     print("Waiting up to five minutes for the secret...", flush=True)
@@ -336,7 +374,12 @@ def run(args):
         # Redact accidental plain-text echoes before output reaches the model context.
         # Match the bytes the command received; POSIX environments use surrogateescape.
         echoed = os.fsencode(secret) if args.env else secret.encode()
+        redactions = [echoed]
+        if fields:
+            redactions.extend(os.fsencode(value) for value in json.loads(secret).values())
         for stream, data in ((sys.stdout, result.stdout), (sys.stderr, result.stderr)):
+            for value in sorted(redactions, key=len, reverse=True):
+                data = data.replace(value, b"[REDACTED]")
             stream.flush()
             stream.buffer.write(data.replace(echoed, b"[REDACTED]"))
             stream.flush()
@@ -361,6 +404,7 @@ def main():
     mode = runner.add_mutually_exclusive_group(required=True)
     mode.add_argument("--env", help="Inject as this environment variable")
     mode.add_argument("--stdin", action="store_true", help="Pass secret to command on standard input")
+    runner.add_argument("--field", action="append", default=[], metavar="NAME=Label", help="Add a labeled credential field; delivers a JSON object through --env or --stdin")
     runner.add_argument("--allow-http", action="store_true", help=argparse.SUPPRESS)
     runner.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()

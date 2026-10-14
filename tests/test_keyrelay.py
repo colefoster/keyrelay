@@ -61,6 +61,38 @@ class ExchangeTest(unittest.TestCase):
         self.assertEqual(self.request(api_path, "POST", {}, token=created["token"])[1]["secret"], "test-secret")
         self.assertEqual(self.request(api_path, "POST", {}, token=created["token"])[0], 404)
 
+    def test_multiple_fields_validate_and_deliver_once(self):
+        fields = [{"name": "apiKey", "label": "API key"}, {"name": "apiSecret", "label": "API <secret>"}]
+        status, created = self.request("/api/requests", "POST", {"command": "tool", "target": "BUNDLE", "fields": fields})
+        self.assertEqual(status, 201)
+        self.assertEqual(created["field_count"], 2)
+        path = "/r/" + created["id"]
+        page = self.request(path)[1]
+        self.assertIn('data-name="apiKey"', page)
+        self.assertIn('API &lt;secret&gt;', page)
+        for value in ["plain", '{}', '{"apiKey":"x"}', '{"apiKey":"x","apiSecret":""}']:
+            self.assertEqual(self.request(path + "/submit", "POST", {"secret": value})[0], 400)
+        secret = json.dumps({"apiKey":"fake-key", "apiSecret":"fake-secret"})
+        self.assertEqual(self.request(path + "/submit", "POST", {"secret":secret})[0], 200)
+        self.assertEqual(self.request("/api/requests/"+created["id"], "POST", {}, token=created["token"])[1]["secret"], secret)
+
+    def test_invalid_field_specs(self):
+        for fields in [None, {}, [None], [{"name":"a", "label":"A"}]*2, [{"name":"bad-name", "label":"A"}]]:
+            self.assertEqual(self.request("/api/requests", "POST", {"command":"tool", "target":"BUNDLE", "fields":fields})[0], 400)
+
+    def test_multi_field_runner_redacts_each_value(self):
+        output, errors = TextIOWrapper(BytesIO()), TextIOWrapper(BytesIO())
+        secret = json.dumps({"apiKey":"fake-key", "apiSecret":"fake-secret"})
+        args = Namespace(url="https://example.com", env="BUNDLE", stdin=False, allow_http=False,
+                         field=["apiKey=API key", "apiSecret=API secret"], command=["tool"])
+        responses = [{"id":"id", "token":"token", "expires_in":300, "field_count":2}, {"status":"ready"}, {"secret":secret}]
+        result = Namespace(stdout=b"fake-key", stderr=b"fake-secret", returncode=0)
+        with patch.object(keyrelay, "api", side_effect=responses), patch.object(keyrelay.subprocess, "run", return_value=result), redirect_stdout(output), redirect_stderr(errors):
+            self.assertEqual(keyrelay.run(args), 0)
+        output.flush(); errors.flush()
+        self.assertNotIn(b"fake-key", output.buffer.getvalue())
+        self.assertEqual(errors.buffer.getvalue(), b"[REDACTED]")
+
     def test_page_escapes_command(self):
         _, created = self.request("/api/requests", "POST", {"command": "<script>alert(1)</script>", "target": "TOKEN"})
         _, html = self.request("/r/" + created["id"])

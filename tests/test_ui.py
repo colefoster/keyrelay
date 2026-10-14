@@ -36,6 +36,14 @@ class BrokerPageTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(result.stdout.startswith("ok"), result.stdout)
 
+    def test_multi_field_script(self):
+        request = item()
+        request["fields"] = [{"name": name, "label": name} for name in ["apiKey", "apiSecret", "accessToken", "accessTokenSecret"]]
+        body = keyrelay.page(request, "fake-request")
+        script = body.split("<script>", 1)[1].split("</script>", 1)[0]
+        result = subprocess.run(["node", str(ROOT / "tests/multi_field_ui.cjs")], input=script, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_used_request_has_no_form_or_stale_instructions(self):
         body = keyrelay.page(item("ready"), "abc")
         self.assertNotIn("<form", body)

@@ -67,6 +67,23 @@ For a tool that accepts a credential on standard input, use `--stdin` instead of
 
 The runner returns the command's exit status and redacted output after the command finishes. Interactive commands that need a terminal are not supported. Exact secret echoes are redacted; transformed or deliberately transmitted secrets are not.
 
+### Multiple credentials in one form
+
+Repeat `--field NAME=Label` for separate password inputs:
+
+```sh
+npx keyrelay run --env X_CREDENTIALS_JSON \
+  --field 'apiKey=API Key' --field 'apiSecret=API Key Secret' \
+  --field 'accessToken=Access Token' --field 'accessTokenSecret=Access Token Secret' \
+  -- your-command
+```
+
+The user fills four labeled fields. Keyrelay builds a JSON object keyed by the field
+names and passes it through the selected environment variable or standard input.
+Every field is required. Individual values are redacted from captured command output,
+as well as the whole bundle. Both the runner and a remote broker must support fields.
+For this unreleased feature, use `python3 keyrelay.py run` from this checkout.
+
 ### Without Node.js
 
 Clone the repository and use the Python CLI directly:
