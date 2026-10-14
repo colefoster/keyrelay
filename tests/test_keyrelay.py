@@ -80,6 +80,38 @@ class ExchangeTest(unittest.TestCase):
         for fields in [None, {}, [None], [{"name":"a", "label":"A"}]*2, [{"name":"bad-name", "label":"A"}]]:
             self.assertEqual(self.request("/api/requests", "POST", {"command":"tool", "target":"BUNDLE", "fields":fields})[0], 400)
 
+    def test_instructions_are_validated_and_escaped(self):
+        body = {"command": "tool", "target": "BUNDLE", "note": "Use the app account.\n<script>bad</script>",
+                "fields": [{"name": "key", "label": "Key", "help": "Settings > Keys <b>only</b>"}]}
+        status, created = self.request("/api/requests", "POST", body)
+        self.assertEqual(status, 201)
+        self.assertTrue(created["supports_notes"])
+        page = self.request("/r/" + created["id"])[1]
+        self.assertIn('aria-describedby="hint help-0"', page)
+        self.assertIn('Settings &gt; Keys &lt;b&gt;only&lt;/b&gt;', page)
+        self.assertIn('Use the app account.\n&lt;script&gt;bad&lt;/script&gt;', page)
+        for note in (None, {}, "x" * 2001):
+            self.assertEqual(self.request("/api/requests", "POST", dict(body, note=note))[0], 400)
+        for help_text in (None, {}, "x" * 1001):
+            invalid = dict(body, fields=[{"name": "key", "label": "Key", "help": help_text}])
+            self.assertEqual(self.request("/api/requests", "POST", invalid)[0], 400)
+
+    def test_runner_rejects_unsupported_notes_and_invalid_help(self):
+        args = Namespace(url="https://example.com", env="BUNDLE", allow_http=False, command=["tool"],
+                         field=["key=Key"], note="Use the app account", field_help=["key=Settings > Keys"])
+        with patch.object(keyrelay, "api", return_value={"field_count": 1}) as api:
+            with self.assertRaisesRegex(RuntimeError, "update the broker"):
+                keyrelay.run(args)
+            payload = api.call_args.args[2]
+            self.assertEqual(payload["note"], args.note)
+            self.assertEqual(payload["fields"][0]["help"], "Settings > Keys")
+        for help_specs in (["missing=Help"], ["key=Help", "key=Again"], ["key="], ["key"], ["key=" + "x" * 1001]):
+            args.field_help = help_specs
+            with patch.object(keyrelay, "api") as api:
+                with self.assertRaisesRegex(RuntimeError, "Field help"):
+                    keyrelay.run(args)
+                api.assert_not_called()
+
     def test_multi_field_runner_redacts_each_value(self):
         output, errors = TextIOWrapper(BytesIO()), TextIOWrapper(BytesIO())
         secret = json.dumps({"apiKey":"fake-key", "apiSecret":"fake-secret"})

@@ -14,6 +14,8 @@ function setup() {
   const focusable = el => Object.assign(el, {focus() { page.active = el; }});
   const button = {disabled: false, textContent: 'Send once'};
   const input = focusable({value: '', disabled: false});
+  const reveal = {disabled: false, pressed: 'false', setAttribute(_, value) { this.pressed = value; },
+    getAttribute() { return this.pressed; }, addEventListener(_, fn) { this.click = fn; }};
   const classes = new Set();
   const message = focusable({textContent: '', classList: {
     toggle(name, on) { on ? classes.add(name) : classes.delete(name); },
@@ -23,11 +25,12 @@ function setup() {
     removed: false,
     addEventListener(type, fn) { assert.strictEqual(type, 'submit'); page.listener = fn; },
     querySelector(selector) { assert.strictEqual(selector, 'button'); return button; },
+    querySelectorAll() { return [input]; },
     remove() { this.removed = true; },
   };
   const h1 = {textContent: 'Ready for a secret'};
   const intro = {textContent: 'Review the command before supplying the secret. The request expires after five minutes.'};
-  const elements = {form, secret: input, message, intro};
+  const elements = {form, secret: input, message, intro, reveal};
   const document = {
     title: 'Ready for a secret · Keyrelay',
     getElementById: id => elements[id] || null,
@@ -51,7 +54,7 @@ function setup() {
   vm.runInContext(SCRIPT, context);
   assert.ok(page.listener, 'submit listener registered');
   const submit = () => page.listener({preventDefault() {}});
-  return {page, button, input, message, form, h1, intro, document, submit};
+  return {page, button, input, message, form, h1, intro, document, submit, reveal};
 }
 
 function response(status) {
@@ -60,6 +63,8 @@ function response(status) {
 
 function assertSending(ui) {
   assert.strictEqual(ui.input.value, '');
+  assert.strictEqual(ui.input.type, 'password');
+  assert.strictEqual(ui.reveal.disabled, true);
   assert.strictEqual(ui.input.disabled, true);
   assert.strictEqual(ui.button.disabled, true);
   assert.strictEqual(ui.button.textContent, 'Sending…');
@@ -110,6 +115,27 @@ const scenarios = {
     await flush();
     assertSucceeded(ui);
     assert.strictEqual(ui.page.fetches.length, 1);
+  },
+
+  async revealResetsOnFailedSubmission() {
+    const ui = setup();
+    ui.input.value = FAKE;
+    ui.reveal.click();
+    assert.strictEqual(ui.input.type, 'text');
+    assert.strictEqual(ui.reveal.pressed, 'true');
+    ui.reveal.click();
+    assert.strictEqual(ui.input.type, 'password');
+    ui.reveal.click();
+    ui.submit();
+    await flush();
+    assertSending(ui);
+    ui.reveal.click();
+    assert.strictEqual(ui.input.type, 'password');
+    ui.page.fetches[0].resolve(response(500));
+    await flush();
+    assert.strictEqual(ui.reveal.disabled, false);
+    assert.strictEqual(ui.reveal.pressed, 'false');
+    assert.strictEqual(ui.input.value, '');
   },
 
   async networkFailureIsAmbiguousThenManualRetry() {
