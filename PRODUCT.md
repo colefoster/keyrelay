@@ -11,7 +11,7 @@ Developers working with coding agents that need credentials for CLI commands.
 Address the moment a coding agent needs an API key but warns the user not to paste it into chat. Give the user a local form that hands the key to the waiting command, so work can continue without putting the key in the conversation.
 
 ## Operating Context
-A Python standard-library broker runs on localhost by default, with optional Tailscale access. A browser form displays the pending command. A runner injects the submitted secret through an environment variable or stdin.
+A Python standard-library broker runs on localhost by default, with optional Tailscale access. A browser form displays the pending command. A runner injects the submitted secret through an environment variable or stdin. With repeated `--field NAME=Label` options, one form collects up to 16 labeled credentials and delivers a JSON object. Users never assemble the JSON themselves.
 
 ## Capabilities and Constraints
 Requests expire after five minutes, live in memory, and are consumed once. Plain-text secret echoes are redacted. This is not a sandbox: trusted commands can transmit or transform credentials. No hosted public broker is offered. The npm launcher requires Node.js and Python 3.9+; Tailscale is not required for local use.

@@ -51,7 +51,7 @@ The link expires after five minutes; Ctrl+C cancels the handoff. Keyrelay prints
 
 Add this to your agent instructions:
 
-> When a command needs a credential, run it with `npx keyrelay run --env VARIABLE -- COMMAND` (or `--stdin`) and show me the printed one-time link. Replace VARIABLE with the environment variable the tool expects and COMMAND with the actual command. Leave the runner waiting while I enter the credential in my browser. Never ask me to paste credentials into the conversation. The link opens on the computer running the command; use a configured Tailscale broker with `--url` for remote agents.
+> When a command needs multiple credentials, use repeated `--field NAME=Label` options so the user gets separate password fields; do not ask them to assemble JSON. The target command must accept a JSON bundle. For one credential, run it with `npx keyrelay run --env VARIABLE -- COMMAND` (or `--stdin`) and show me the printed one-time link. Replace VARIABLE with the environment variable the tool expects and COMMAND with the actual command. Leave the runner waiting while I enter the credential in my browser. Never ask me to paste credentials into the conversation. The link opens on the computer running the command; use a configured Tailscale broker with `--url` for remote agents.
 
 Keyrelay hands a credential to the command you specify. It does not create API keys or decide which permissions a tool needs. Install the target tool separately and use a credential for that tool only when its task requires one.
 
@@ -72,7 +72,7 @@ The runner returns the command's exit status and redacted output after the comma
 Repeat `--field NAME=Label` for separate password inputs:
 
 ```sh
-npx keyrelay run --env X_CREDENTIALS_JSON \
+npx keyrelay@latest run --env X_CREDENTIALS_JSON \
   --field 'apiKey=API Key' --field 'apiSecret=API Key Secret' \
   --field 'accessToken=Access Token' --field 'accessTokenSecret=Access Token Secret' \
   -- your-command
@@ -80,9 +80,12 @@ npx keyrelay run --env X_CREDENTIALS_JSON \
 
 The user fills four labeled fields. Keyrelay builds a JSON object keyed by the field
 names and passes it through the selected environment variable or standard input.
-Every field is required. Individual values are redacted from captured command output,
-as well as the whole bundle. Both the runner and a remote broker must support fields.
-For this unreleased feature, use `python3 keyrelay.py run` from this checkout.
+The target command must accept that JSON object; field names are not separate environment
+variables. Supports up to 16 fields, unique identifier names, and 16,384 characters for
+the complete submitted bundle. Every field is required. Individual values are redacted from captured command output,
+as well as the whole bundle. Requires **Keyrelay 0.1.4+** on both the runner and a remote broker. Update a global
+installation with `npm install -g keyrelay@latest`; update and restart a self-hosted
+broker before using fields. Existing single-key commands continue to work.
 
 ### Without Node.js
 
