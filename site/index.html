@@ -35,13 +35,15 @@
 <div class="section-heading"><h2 id="multiple-title">Four credentials.<br>One form.</h2><p>A separate box for each value.<br>No JSON to write by hand.</p></div>
 <div class="try-body"><div><p class="try-lead">Connecting an app that needs an API key, a secret, and two access tokens? Your agent names each field. You paste each value into its own password box and select <strong>Send once</strong>.</p>
 <pre class="demo-command"><code>npx keyrelay@latest run --env CREDENTIALS \
+  --note "Use the app account. Enable write permissions first." \
   --field "apiKey=API Key" \
+  --field-help "apiKey=Find this in your app's Keys and tokens settings." \
   --field "apiSecret=API Key Secret" \
   --field "accessToken=Access Token" \
   --field "accessTokenSecret=Access Token Secret" \
   -- your-command</code></pre></div>
 <ol class="try-steps"><li>The private form shows four labeled password fields.</li><li>Keyrelay builds the JSON object and delivers it to your command.</li><li>Each credential is redacted if the command echoes its exact value.</li></ol></div>
-<p class="try-note">Replace <code>your-command</code> with a tool that accepts a JSON credential bundle in <code>CREDENTIALS</code>. Requires Keyrelay 0.1.4 or newer on both the runner and any remote broker. This public page collects no credentials.</p>
+<p class="try-note">Add <code>--note</code> for instructions above the form and <code>--field-help NAME=Instructions</code> for help under a field. Show or hide pasted values to check them; submitting clears and hides them again. Instructions are plain text: never include credentials. Replace <code>your-command</code> with a tool that accepts a JSON credential bundle in <code>CREDENTIALS</code>. This example requires Keyrelay 0.1.5 or newer on both the runner and any remote broker. This public page collects no credentials.</p>
 </section>
 <section class="boundary wrap"><div><h2>Your computer.<br>Your trust boundary.</h2><p>Run one command. Keyrelay starts a temporary broker on your computer and shuts it down afterward. Tailscale is optional if you want to enter keys from another device.</p><a class="text-link" href="https://github.com/colefoster/keyrelay#security-model">Read the security model <span aria-hidden="true">↗</span></a></div><dl><div><dt>In memory</dt><dd>Requests expire after five minutes. Successful claims delete the entry; expired entries are cleared on the next request.</dd></div><div><dt>In your control</dt><dd>Bound to localhost. No database or HTTP request logging. Other programs on your computer share the same trust boundary.</dd></div><div><dt>Built on trust</dt><dd>Keyrelay keeps the handoff out of chat. A command still receives the real secret and can store or transmit it. Review what you run.</dd></div></dl></section>
 <section id="faq" class="faq wrap" aria-labelledby="faq-title">

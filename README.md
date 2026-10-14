@@ -87,6 +87,33 @@ as well as the whole bundle. Requires **Keyrelay 0.1.4+** on both the runner and
 installation with `npm install -g keyrelay@latest`; update and restart a self-hosted
 broker before using fields. Existing single-key commands continue to work.
 
+### Instructions and checking values
+
+With **0.1.5+** on both runner and broker, add `--note` for instructions above the
+form and repeat `--field-help NAME=Instructions` for help beneath a named field:
+
+```sh
+npx keyrelay@latest run --env X_CREDENTIALS_JSON \
+  --note 'Use the app account. Enable Read and write before generating access tokens.' \
+  --field 'apiKey=API Key' --field-help 'apiKey=Developer Console > App > Keys and tokens.' \
+  --field 'apiSecret=API Key Secret' \
+  --field 'accessToken=Access Token' \
+  --field-help 'accessToken=Generate after enabling write permissions.' \
+  --field 'accessTokenSecret=Access Token Secret' \
+  -- your-command
+```
+
+Notes also work with single-key requests. Text is displayed literally (no HTML or
+Markdown); line breaks are preserved. Notes allow up to 2,000 characters, field
+help up to 1,000. Field help must name an existing field and may be supplied once
+per field. **Never include credentials in labels, notes, help, or command arguments**:
+these are request metadata, not secret inputs.
+
+Every form includes **Show values / Hide values** for checking pasted credentials.
+Values start hidden and are cleared and hidden again when you submit, including
+after a failed attempt. Neither help text nor the visibility control changes the
+credential bundle delivered to your command.
+
 ### Without Node.js
 
 Clone the repository and use the Python CLI directly:

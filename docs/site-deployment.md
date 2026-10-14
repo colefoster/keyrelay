@@ -25,3 +25,7 @@ deploying the page. The labeled multi-credential flow requires 0.1.4+ on both th
 runner and broker. Deploy private broker changes with `ship plan --json` followed by
 `ship apply --plan <digest> --json` using `deploy.json`. Then deploy the static site
 with the Pages command above and verify the custom domain serves the new copy.
+
+Form instructions (`--note`, `--field-help`) require 0.1.5+ on both runner and
+broker. Show/Hide values is served by the broker. Avoid restarting a broker during
+an active handoff: its pending requests live in memory and are lost on restart.

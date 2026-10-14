@@ -69,6 +69,7 @@ def page(item, request_id):
         <input id="secret" type="password" autocomplete="off" spellcheck="false" autofocus required aria-describedby="hint">
         <p id="hint" class="hint">Sent once, only to this request. The field clears after every attempt.</p>
         <button type="submit">Send once</button>
+        <button id="reveal" type="button" aria-pressed="false">Show values</button>
       </form>
       <p id="message" role="status" tabindex="-1"></p>
     """ if active else ""
@@ -77,6 +78,15 @@ def page(item, request_id):
       const form = document.getElementById('form');
       const message = document.getElementById('message');
       let sending = false;
+      const reveal = document.getElementById('reveal');
+      function setVisible(visible) {
+        form.querySelectorAll('input').forEach(input => { input.type = visible ? 'text' : 'password'; });
+        reveal.textContent = visible ? 'Hide values' : 'Show values';
+        reveal.setAttribute('aria-pressed', String(visible));
+      }
+      if (reveal) reveal.addEventListener('click', () => {
+        if (!sending) setVisible(reveal.getAttribute('aria-pressed') !== 'true');
+      });
       function show(text, error) {
         message.textContent = text;
         message.classList.toggle('error', error);
@@ -90,6 +100,7 @@ def page(item, request_id):
         const secret = input.value;
         // Clear before sending so no outcome leaves the secret in the page.
         input.value = '';
+        if (reveal) { setVisible(false); reveal.disabled = true; }
         // Disabled so nothing typed while in flight stays in the field afterward.
         input.disabled = true;
         button.disabled = true;
@@ -119,6 +130,7 @@ def page(item, request_id):
           return;
         }
         input.disabled = false;
+        if (reveal) reveal.disabled = false;
         button.disabled = false;
         button.textContent = 'Send once';
         const status = response ? response.status : 0;
@@ -135,8 +147,10 @@ def page(item, request_id):
     """ if active else ""
     if active and fields:
         inputs = "\n".join(
-            '<label for="field-%d">%s</label><input id="field-%d" data-name="%s" type="password" autocomplete="off" spellcheck="false" required aria-describedby="hint">'
-            % (i, html.escape(field["label"]), i, html.escape(field["name"], quote=True))
+            '<label for="field-%d">%s</label><input id="field-%d" data-name="%s" type="password" autocomplete="off" spellcheck="false" required aria-describedby="hint%s">%s'
+            % (i, html.escape(field["label"]), i, html.escape(field["name"], quote=True),
+               ' help-%d' % i if field.get('help') else '',
+               '<p id="help-%d" class="hint instructions">%s</p>' % (i, html.escape(field['help'])) if field.get('help') else '')
             for i, field in enumerate(fields))
         start = form.index('        <label for="secret">')
         end = form.index('        <p id="hint"', start)
@@ -146,6 +160,8 @@ def page(item, request_id):
         script = script.replace("input.value = '';", "inputs.forEach(i => { i.value = ''; });")
         script = script.replace("input.disabled = true;", "inputs.forEach(i => { i.disabled = true; });")
         script = script.replace("input.disabled = false;", "inputs.forEach(i => { i.disabled = false; });")
+    if active and item.get("note"):
+        form = '<p class="instructions">' + html.escape(item['note']) + '</p>' + form
     return """<!doctype html><html lang="en"><meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       <meta name="robots" content="noindex,nofollow">
@@ -159,6 +175,7 @@ def page(item, request_id):
       input{background:#fff;border:0;color:#111827}button{background:#67e8f9;border:0;color:#082f49;font-weight:700;margin-top:.8rem;cursor:pointer}
       button:disabled{opacity:.5;cursor:wait}p{color:#cbd5e1;line-height:1.5}#message{color:#67e8f9}#message.error{color:#fca5a5}
       .hint{font-size:.85rem;margin:.5rem 0 0}input:focus,button:focus-visible,#message:focus-visible{outline:3px solid #67e8f9;outline-offset:3px}
+      .instructions{white-space:pre-wrap;overflow-wrap:anywhere}#reveal{background:transparent;color:#cbd5e1;border:1px solid #64748b}
       </style><main><div class="eyebrow">One-time credential handoff</div>
       <h1>""" + html.escape(status) + """</h1><p id="intro">""" + intro + """</p>
       <dl><dt>Environment variable / input</dt><dd>""" + html.escape(item["target"]) + """</dd>
@@ -238,11 +255,15 @@ def handler_factory(allowed_email, auth_mode="serve"):
                 if not 0 < len(body["command"]) <= 2000 or not 0 < len(body["target"]) <= 100:
                     return reply(self, 400, {"error": "Invalid request"})
                 fields = body.get("fields", [])
+                note = body.get("note", "")
+                if not isinstance(note, str) or len(note) > 2000:
+                    return reply(self, 400, {"error": "Invalid note (maximum 2000 characters)"})
                 if (not isinstance(fields, list) or len(fields) > 16 or any(
-                    not isinstance(f, dict) or set(f) != {"name", "label"}
+                    not isinstance(f, dict) or not {"name", "label"} <= set(f) or set(f) - {"name", "label", "help"}
                     or not isinstance(f["name"], str) or not f["name"].isascii()
                     or not f["name"].isidentifier() or len(f["name"]) > 100
                     or not isinstance(f["label"], str) or not 0 < len(f["label"]) <= 100
+                    or not isinstance(f.get("help", ""), str) or len(f.get("help", "")) > 1000
                     for f in fields) or len({f["name"] for f in fields}) != len(fields)):
                     return reply(self, 400, {"error": "Invalid fields"})
                 request_id = secrets.token_urlsafe(18)
@@ -251,8 +272,8 @@ def handler_factory(allowed_email, auth_mode="serve"):
                     self.cleanup()
                     if len(requests) >= 100:
                         return reply(self, 429, {"error": "Too many pending requests"})
-                    requests[request_id] = {"token": token, "secret": None, "status": "waiting", "expires": time.monotonic() + TTL, "command": body["command"], "target": body["target"], "fields": fields}
-                return reply(self, 201, {"id": request_id, "token": token, "expires_in": TTL, "field_count": len(fields)})
+                    requests[request_id] = {"token": token, "secret": None, "status": "waiting", "expires": time.monotonic() + TTL, "command": body["command"], "target": body["target"], "fields": fields, "note": note}
+                return reply(self, 201, {"id": request_id, "token": token, "expires_in": TTL, "field_count": len(fields), "supports_notes": True})
             parts = path.strip("/").split("/")
             if len(parts) >= 2 and parts[0] == "r":
                 request_id = parts[1]
@@ -348,7 +369,20 @@ def run(args):
         if not separator:
             raise RuntimeError("Fields use NAME=Label")
         fields.append({"name": name, "label": label})
-    created = api(base + "/api/requests", "POST", {"command": display, "target": target, "fields": fields})
+    helped = set()
+    for specification in getattr(args, "field_help", []) or []:
+        name, separator, help_text = specification.partition("=")
+        matches = [field for field in fields if field["name"] == name]
+        if not separator or len(matches) != 1 or name in helped or not help_text or len(help_text) > 1000:
+            raise RuntimeError("Field help uses NAME=Instructions for one existing field, once per field (maximum 1000 characters)")
+        matches[0]["help"] = help_text
+        helped.add(name)
+    note = getattr(args, "note", "") or ""
+    if len(note) > 2000:
+        raise RuntimeError("Note must be at most 2000 characters")
+    created = api(base + "/api/requests", "POST", {"command": display, "target": target, "fields": fields, "note": note})
+    if (note or helped) and not created.get("supports_notes"):
+        raise RuntimeError("Broker does not support instructions; update the broker first")
     if fields and created.get("field_count") != len(fields):
         raise RuntimeError("Broker does not support labeled fields; update the broker first")
     request_id, token = created["id"], created["token"]
@@ -405,6 +439,8 @@ def main():
     mode.add_argument("--env", help="Inject as this environment variable")
     mode.add_argument("--stdin", action="store_true", help="Pass secret to command on standard input")
     runner.add_argument("--field", action="append", default=[], metavar="NAME=Label", help="Add a labeled credential field; delivers a JSON object through --env or --stdin")
+    runner.add_argument("--note", default="", metavar="Instructions", help="Instructions above the form (plain text, maximum 2000 characters; never include secrets)")
+    runner.add_argument("--field-help", action="append", default=[], metavar="NAME=Instructions", help="Help below a named --field (plain text, maximum 1000 characters; never include secrets)")
     runner.add_argument("--allow-http", action="store_true", help=argparse.SUPPRESS)
     runner.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
