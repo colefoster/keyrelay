@@ -1,6 +1,6 @@
 # Keyrelay project PM
 
-Updated 2026-10-07. Owner: Cole. This is the local product/reach backlog; publishing and outreach remain decisions for Cole.
+Updated 2026-10-13. Owner: Cole. This is the local product/reach backlog; publishing and outreach remain decisions for Cole.
 
 ## Product truth and boundaries
 
@@ -41,3 +41,11 @@ Claude authors application UI/HTML/CSS changes in an isolated local worktree; So
 - Choose the first public problem/use-case page and which agent tutorial to write first.
 - Decide whether a fixed-value interactive illustration adds enough value beyond the runnable local fake-value demo.
 - Decide whether to use existing Search Console access for a baseline after publication; no new accounts or permissions are assumed.
+
+## Multi-credential release — 2026-10-13
+
+Cole authorized deployment and documentation of labeled credential fields. The private
+broker supports repeated `--field NAME=Label`; the public site and README explain the
+four-field X API use case. The public site remains static and collects no credentials.
+Version 0.1.4 includes the runner and broker changes; remote brokers must be upgraded too.
+This authorization covers this feature release, not outreach or the deferred backlog.

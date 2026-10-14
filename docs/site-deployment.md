@@ -17,3 +17,11 @@ The custom domain must be registered on the Pages project before creating its CN
 `deploy.json` describes the separate private broker on ash; it is not the product-site deployment. The public site must never replace the private broker's DNS or expose its API.
 
 Analytics dashboard: https://dash.cloudflare.com/254fb8570eaf32755d54128ed3904237/web-analytics/overview?siteTag=104ffa4d2d8240cebc598e9f4b980648
+
+## Keeping releases aligned
+
+For CLI features shown on the public site, publish the matching npm version before
+deploying the page. The labeled multi-credential flow requires 0.1.4+ on both the
+runner and broker. Deploy private broker changes with `ship plan --json` followed by
+`ship apply --plan <digest> --json` using `deploy.json`. Then deploy the static site
+with the Pages command above and verify the custom domain serves the new copy.
