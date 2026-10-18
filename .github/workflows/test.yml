@@ -7,11 +7,13 @@ permissions:
   contents: read
 jobs:
   test:
+    # Linux only: on GitHub's macOS runners, signals forwarded through the Node launcher
+    # never reach the runner, so the cancellation tests wait out the five-minute expiry.
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
         python: ["3.9", "3.13"]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
