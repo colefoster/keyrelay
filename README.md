@@ -205,7 +205,6 @@ python3 -m unittest discover -s tests
 python3 -m http.server 8080 --directory site
 ```
 
-The public product page is static and collects no credentials. It is deployed to Cloudflare Pages separately from the private broker. See [site deployment](https://github.com/colefoster/keyrelay/blob/main/docs/site-deployment.md).
 
 ## License
 
