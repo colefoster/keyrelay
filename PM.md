@@ -10,6 +10,8 @@ This is not a sandbox, a multi-user secret manager, or a defense against a malic
 
 Requests expire after five minutes; expired entries are removed on the next broker request. A successful runner claim deletes the entry. Restarting the broker discards pending entries. Cancellation stops the temporary local broker. A persistent broker may retain an abandoned request until expiry/cleanup. Exact credential echoes in captured output are redacted; transformed output and target-tool storage are outside that protection.
 
+`keyrelay exchange` (0.1.6) is the sign-in/account-creation path: the review screen shows action, declared host, exact command, and what returns; values reach the command only as JSON on stdin; the agent gets only the JSON the command writes to `$KEYRELAY_RESULT_FD`, withheld if it contains a typed value (plain or common encodings), plus a redacted log. `--host` is declared, not enforced, and the target command still sees the password. Browser sign-ins with 2FA/CAPTCHA are a documented agent pattern ([docs/browser-handoff.md](docs/browser-handoff.md)), not Keyrelay code.
+
 Evidence: [README](README.md), `keyrelay.py` (`page`, `handler_factory`, `cleanup`, `run`), and the existing exchange/local-runner tests. Keep this description aligned with code whenever those behaviors change.
 
 ## Prioritized reach backlog
