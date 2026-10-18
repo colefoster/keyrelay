@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class LocalSecurityTest(unittest.TestCase):
     def test_rejects_rebinding_and_cross_origin_submission(self):
-        server = ThreadingHTTPServer(('127.0.0.1', 0), keyrelay.handler_factory(None, 'local'))
+        server = ThreadingHTTPServer(('127.0.0.1', 0), keyrelay.handler_factory())
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         authority = '127.0.0.1:%d' % server.server_port
@@ -49,7 +49,7 @@ class LocalSecurityTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
-            keyrelay.requests.clear()
+            keyrelay.pending.clear()
 
 
 class LocalRunnerTest(unittest.TestCase):

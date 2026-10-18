@@ -9,11 +9,12 @@ const SCRIPT = fs.readFileSync(0, 'utf8');
 const FAKE = 'demo-value';
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function setup() {
+function setup(names = null) {
   const page = {fetches: [], timers: new Map(), nextTimer: 1, listener: null, active: null};
   const focusable = el => Object.assign(el, {focus() { page.active = el; }});
   const button = {disabled: false, textContent: 'Send once'};
-  const input = focusable({value: '', disabled: false});
+  const inputs = (names || ['secret']).map(name => focusable({value: '', disabled: false, dataset: {name}}));
+  const input = inputs[0];
   const reveal = {disabled: false, pressed: 'false', setAttribute(_, value) { this.pressed = value; },
     getAttribute() { return this.pressed; }, addEventListener(_, fn) { this.click = fn; }};
   const classes = new Set();
@@ -23,14 +24,15 @@ function setup() {
   }});
   const form = {
     removed: false,
+    dataset: names ? {bundle: '1'} : {},
     addEventListener(type, fn) { assert.strictEqual(type, 'submit'); page.listener = fn; },
     querySelector(selector) { assert.strictEqual(selector, 'button'); return button; },
-    querySelectorAll() { return [input]; },
+    querySelectorAll() { return inputs; },
     remove() { this.removed = true; },
   };
   const h1 = {textContent: 'Ready for a secret'};
   const intro = {textContent: 'Review the command before supplying the secret. The request expires after five minutes.'};
-  const elements = {form, secret: input, message, intro, reveal};
+  const elements = {form, message, intro, reveal};
   const document = {
     title: 'Ready for a secret · Keyrelay',
     getElementById: id => elements[id] || null,
@@ -54,7 +56,7 @@ function setup() {
   vm.runInContext(SCRIPT, context);
   assert.ok(page.listener, 'submit listener registered');
   const submit = () => page.listener({preventDefault() {}});
-  return {page, button, input, message, form, h1, intro, document, submit, reveal};
+  return {page, button, input, inputs, message, form, h1, intro, document, submit, reveal};
 }
 
 function response(status) {
@@ -99,6 +101,22 @@ function assertRecovered(ui, pattern) {
 }
 
 const scenarios = {
+  async multiFieldSendsBundleAndClearsEveryField() {
+    const names = ['apiKey', 'apiSecret', 'accessToken', 'accessTokenSecret'];
+    const ui = setup(names);
+    ui.inputs.forEach(input => { input.value = 'fake-' + input.dataset.name; });
+    ui.reveal.click();
+    assert.ok(ui.inputs.every(input => input.type === 'text'));
+    ui.submit();
+    await flush();
+    const sent = JSON.parse(JSON.parse(ui.page.fetches[0].options.body).secret);
+    assert.deepStrictEqual(sent, Object.fromEntries(names.map(name => [name, 'fake-' + name])));
+    assert.ok(ui.inputs.every(input => input.value === '' && input.disabled && input.type === 'password'));
+    ui.page.fetches[0].resolve(response(200));
+    await flush();
+    assertSucceeded(ui);
+  },
+
   async duplicatePendingSubmitThenSuccess() {
     const ui = setup();
     ui.input.value = FAKE;
