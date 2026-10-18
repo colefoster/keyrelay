@@ -114,6 +114,30 @@ Values start hidden and are cleared and hidden again when you submit, including
 after a failed attempt. Neither help text nor the visibility control changes the
 credential bundle delivered to your command.
 
+### Sign in or exchange credentials for a token
+
+Fields also cover sign-ins and first-run account creation. You type the username and
+password, and the command trades them for something narrower, such as an API key:
+
+```sh
+npx keyrelay run --stdin \
+  --field 'email=Admin email' --field 'password=Admin password' \
+  -- python3 examples/immich_api_key.py http://immich.example:2283 immich-api-key.txt
+```
+
+[`examples/immich_api_key.py`](examples/immich_api_key.py) creates the first Immich admin,
+signs in, creates an API key, and signs out. Write commands like it to follow three rules:
+
+- **Send secrets to the target on stdin, never in argv.** Arguments appear in the process
+  list. Use `curl --data @-`, not `curl -d "$PASSWORD"`.
+- **Print only the derived result**, such as "API key saved". Never print the password, the key, or a raw response.
+- **Persist only the token**, in a file only you can read (mode `0600`). Never persist the password.
+
+Some sign-ins can't be scripted: 2FA, CAPTCHAs, passkeys, or SSO. For those, have the
+agent open the page in a browser you can both see. Sign in yourself while the agent
+stops reading the page, then hand control back. The agent continues from the signed-in
+session and never handles your password.
+
 ### Without Node.js
 
 Clone the repository and use the Python CLI directly:
