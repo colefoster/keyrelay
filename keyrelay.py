@@ -206,6 +206,13 @@ def handler_factory(allowed_email=None, host=None):
             # Never log request URLs or headers; they may contain sensitive metadata.
             pass
 
+        def handle(self):
+            try:
+                super().handle()
+            except ConnectionError:
+                # A cancelled runner drops its poll mid-reply; socketserver would print a traceback to stderr.
+                pass
+
         def login(self):
             # Trustworthy only behind Tailscale Serve, which sets this header and replaces client-supplied copies.
             return self.headers.get("Tailscale-User-Login")
