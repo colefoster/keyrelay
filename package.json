@@ -1,6 +1,6 @@
 {
   "name": "keyrelay",
-  "version": "0.1.6",
+  "version": "0.1.5",
   "description": "Agent says not to paste your API key into chat? Give it a local credential handoff with Keyrelay.",
   "bin": {
     "keyrelay": "bin/keyrelay.cjs"
@@ -8,7 +8,6 @@
   "files": [
     "bin/keyrelay.cjs",
     "keyrelay.py",
-    "examples/immich_api_key.py",
     "keyrelay.service"
   ],
   "engines": {

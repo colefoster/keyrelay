@@ -2,7 +2,6 @@
 """One-time credential handoff for CLI commands, locally or over a Tailnet."""
 
 import argparse
-import base64
 import html
 import ipaddress
 import json
@@ -21,7 +20,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 MAX_BODY = 65536
-MAX_RESULT = 65536
 TTL = 300
 POLL_SECONDS = 2
 requests = {}
@@ -82,7 +80,7 @@ def page(item, request_id):
       let sending = false;
       const reveal = document.getElementById('reveal');
       function setVisible(visible) {
-        form.querySelectorAll('input').forEach(input => { input.type = visible || (input.dataset && input.dataset.visible) ? 'text' : 'password'; });
+        form.querySelectorAll('input').forEach(input => { input.type = visible ? 'text' : 'password'; });
         reveal.textContent = visible ? 'Hide values' : 'Show values';
         reveal.setAttribute('aria-pressed', String(visible));
       }
@@ -149,9 +147,8 @@ def page(item, request_id):
     """ if active else ""
     if active and fields:
         inputs = "\n".join(
-            '<label for="field-%d">%s</label><input id="field-%d" data-name="%s"%s autocomplete="off" spellcheck="false" required aria-describedby="hint%s">%s'
+            '<label for="field-%d">%s</label><input id="field-%d" data-name="%s" type="password" autocomplete="off" spellcheck="false" required aria-describedby="hint%s">%s'
             % (i, html.escape(field["label"]), i, html.escape(field["name"], quote=True),
-               ' type="text" data-visible="1"' if field.get("visible") else ' type="password"',
                ' help-%d' % i if field.get('help') else '',
                '<p id="help-%d" class="hint instructions">%s</p>' % (i, html.escape(field['help'])) if field.get('help') else '')
             for i, field in enumerate(fields))
@@ -165,21 +162,6 @@ def page(item, request_id):
         script = script.replace("input.disabled = false;", "inputs.forEach(i => { i.disabled = false; });")
     if active and item.get("note"):
         form = '<p class="instructions">' + html.escape(item['note']) + '</p>' + form
-    details = ("<dt>Environment variable / input</dt><dd>" + html.escape(item["target"]) + "</dd>"
-               "<dt>Command</dt><dd>" + html.escape(item["command"]) + "</dd>")
-    if item.get("kind") == "exchange":
-        if active:
-            status = "Review and approve"
-            intro = "You are approving one run of this command. Only the command receives what you type; the agent receives only the result listed below. The request expires after five minutes."
-        details = ('<dt>Action</dt><dd class="plain">' + html.escape(item["action"]) + "</dd>"
-                   "<dt>Target host</dt><dd>" + html.escape(item["host"]) + "</dd>"
-                   "<dt>Command</dt><dd>" + html.escape(item["command"]) + "</dd>"
-                   '<dt>Your values go to</dt><dd class="plain">This command\'s standard input, as JSON. Not the agent, arguments, environment, or disk.</dd>'
-                   '<dt>Returned to the agent</dt><dd class="plain">' + html.escape(item["returns"]) + "</dd>"
-                   '<dt>Also shown to the agent</dt><dd class="plain">The command\'s output, with your values removed.</dd>')
-        form = form.replace("Send once</button>", "Approve and send once</button>")
-        form = form.replace("Sent once, only to this request.", "Sent once, only to this command.")
-        script = script.replace("button.textContent = 'Send once';", "button.textContent = 'Approve and send once';")
     return """<!doctype html><html lang="en"><meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       <meta name="robots" content="noindex,nofollow">
@@ -193,10 +175,11 @@ def page(item, request_id):
       input{background:#fff;border:0;color:#111827}button{background:#67e8f9;border:0;color:#082f49;font-weight:700;margin-top:.8rem;cursor:pointer}
       button:disabled{opacity:.5;cursor:wait}p{color:#cbd5e1;line-height:1.5}#message{color:#67e8f9}#message.error{color:#fca5a5}
       .hint{font-size:.85rem;margin:.5rem 0 0}input:focus,button:focus-visible,#message:focus-visible{outline:3px solid #67e8f9;outline-offset:3px}
-      .instructions{white-space:pre-wrap;overflow-wrap:anywhere}dd.plain{font-family:inherit}#reveal{background:transparent;color:#cbd5e1;border:1px solid #64748b}
+      .instructions{white-space:pre-wrap;overflow-wrap:anywhere}#reveal{background:transparent;color:#cbd5e1;border:1px solid #64748b}
       </style><main><div class="eyebrow">One-time credential handoff</div>
       <h1>""" + html.escape(status) + """</h1><p id="intro">""" + intro + """</p>
-      <dl>""" + details + """
+      <dl><dt>Environment variable / input</dt><dd>""" + html.escape(item["target"]) + """</dd>
+      <dt>Command</dt><dd>""" + html.escape(item["command"]) + """</dd>
       <dt>Request</dt><dd>""" + html.escape(request_id) + """</dd></dl>""" + form + script + "</main></html>"
 
 
@@ -276,31 +259,21 @@ def handler_factory(allowed_email, auth_mode="serve"):
                 if not isinstance(note, str) or len(note) > 2000:
                     return reply(self, 400, {"error": "Invalid note (maximum 2000 characters)"})
                 if (not isinstance(fields, list) or len(fields) > 16 or any(
-                    not isinstance(f, dict) or not {"name", "label"} <= set(f) or set(f) - {"name", "label", "help", "visible"}
+                    not isinstance(f, dict) or not {"name", "label"} <= set(f) or set(f) - {"name", "label", "help"}
                     or not isinstance(f["name"], str) or not f["name"].isascii()
                     or not f["name"].isidentifier() or len(f["name"]) > 100
                     or not isinstance(f["label"], str) or not 0 < len(f["label"]) <= 100
                     or not isinstance(f.get("help", ""), str) or len(f.get("help", "")) > 1000
-                    or not isinstance(f.get("visible", False), bool)
                     for f in fields) or len({f["name"] for f in fields}) != len(fields)):
                     return reply(self, 400, {"error": "Invalid fields"})
-                kind = body.get("kind", "secret")
-                exchange = {}
-                if kind == "exchange":
-                    # The review screen is the approval; refuse a request that cannot fully describe itself.
-                    exchange = {key: body.get(key) for key in ("action", "host", "returns")}
-                    if not fields or any(not isinstance(value, str) or not 0 < len(value) <= 500 for value in exchange.values()):
-                        return reply(self, 400, {"error": "Invalid exchange (action, host, returns, and fields are required)"})
-                elif kind != "secret":
-                    return reply(self, 400, {"error": "Invalid kind"})
                 request_id = secrets.token_urlsafe(18)
                 token = secrets.token_urlsafe(32)
                 with lock:
                     self.cleanup()
                     if len(requests) >= 100:
                         return reply(self, 429, {"error": "Too many pending requests"})
-                    requests[request_id] = {"token": token, "secret": None, "status": "waiting", "expires": time.monotonic() + TTL, "command": body["command"], "target": body["target"], "fields": fields, "note": note, "kind": kind, **exchange}
-                return reply(self, 201, {"id": request_id, "token": token, "expires_in": TTL, "field_count": len(fields), "supports_notes": True, "supports_exchange": True})
+                    requests[request_id] = {"token": token, "secret": None, "status": "waiting", "expires": time.monotonic() + TTL, "command": body["command"], "target": body["target"], "fields": fields, "note": note}
+                return reply(self, 201, {"id": request_id, "token": token, "expires_in": TTL, "field_count": len(fields), "supports_notes": True})
             parts = path.strip("/").split("/")
             if len(parts) >= 2 and parts[0] == "r":
                 request_id = parts[1]
@@ -365,37 +338,31 @@ def terminate(signum, frame):
     raise Terminated()
 
 
-def with_local_broker(action, args):
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler_factory(None, "local"))
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    local_args = argparse.Namespace(**vars(args))
-    local_args.url = "http://127.0.0.1:%d" % server.server_port
-    local_args.allow_http = True
-    try:
-        return action(local_args)
-    finally:
-        server.shutdown()
-        server.server_close()
-        with lock:
-            requests.clear()
-
-
-def broker_base(args):
-    base = args.url.rstrip("/")
-    if not base.startswith("https://") and not (args.allow_http and base.startswith("http://127.0.0.1:")):
-        raise RuntimeError("Broker URL must use HTTPS")
-    return base
-
-
-def command_of(args):
+def run(args):
     command = args.command[1:] if args.command and args.command[0] == "--" else args.command
     if not command:
         raise RuntimeError("Provide a command after --")
-    return command
-
-
-def parse_fields(args):
+    if args.env and not args.env.isidentifier():
+        raise RuntimeError("Environment variable name must be an identifier")
+    if not args.url:
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler_factory(None, "local"))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        local_args = argparse.Namespace(**vars(args))
+        local_args.url = "http://127.0.0.1:%d" % server.server_port
+        local_args.allow_http = True
+        try:
+            return run(local_args)
+        finally:
+            server.shutdown()
+            server.server_close()
+            with lock:
+                requests.clear()
+    base = args.url.rstrip("/")
+    if not base.startswith("https://") and not (args.allow_http and base.startswith("http://127.0.0.1:")):
+        raise RuntimeError("Broker URL must use HTTPS")
+    target = args.env or "standard input"
+    display = shlex.join(command)
     fields = []
     for specification in getattr(args, "field", []) or []:
         name, separator, label = specification.partition("=")
@@ -413,13 +380,14 @@ def parse_fields(args):
     note = getattr(args, "note", "") or ""
     if len(note) > 2000:
         raise RuntimeError("Note must be at most 2000 characters")
-    return fields, helped, note
-
-
-def claim(base, created, stream):
+    created = api(base + "/api/requests", "POST", {"command": display, "target": target, "fields": fields, "note": note})
+    if (note or helped) and not created.get("supports_notes"):
+        raise RuntimeError("Broker does not support instructions; update the broker first")
+    if fields and created.get("field_count") != len(fields):
+        raise RuntimeError("Broker does not support labeled fields; update the broker first")
     request_id, token = created["id"], created["token"]
-    print("Open " + base + "/r/" + request_id, file=stream, flush=True)
-    print("Waiting up to five minutes for the secret...", file=stream, flush=True)
+    print("Open " + base + "/r/" + request_id, flush=True)
+    print("Waiting up to five minutes for the secret...", flush=True)
     deadline = time.monotonic() + created["expires_in"]
     while time.monotonic() < deadline:
         status = api(base + "/api/requests/" + request_id, token=token)["status"]
@@ -428,25 +396,7 @@ def claim(base, created, stream):
         time.sleep(POLL_SECONDS)
     else:
         raise RuntimeError("Request expired")
-    return api(base + "/api/requests/" + request_id, "POST", {}, token=token)["secret"]
-
-
-def run(args):
-    command = command_of(args)
-    if args.env and not args.env.isidentifier():
-        raise RuntimeError("Environment variable name must be an identifier")
-    if not args.url:
-        return with_local_broker(run, args)
-    base = broker_base(args)
-    target = args.env or "standard input"
-    display = shlex.join(command)
-    fields, helped, note = parse_fields(args)
-    created = api(base + "/api/requests", "POST", {"command": display, "target": target, "fields": fields, "note": note})
-    if (note or helped) and not created.get("supports_notes"):
-        raise RuntimeError("Broker does not support instructions; update the broker first")
-    if fields and created.get("field_count") != len(fields):
-        raise RuntimeError("Broker does not support labeled fields; update the broker first")
-    secret = claim(base, created, sys.stdout)
+    secret = api(base + "/api/requests/" + request_id, "POST", {}, token=token)["secret"]
     env = os.environ.copy()
     if args.env:
         env[args.env] = secret
@@ -476,123 +426,9 @@ def run(args):
             env.pop(args.env, None)
 
 
-def secret_forms(values):
-    """Each submitted value plus encodings a command is likely to print or return by accident."""
-    forms = set()
-    for value in values:
-        raw = value.encode("utf-8", "surrogatepass")
-        forms.update((raw, json.dumps(value)[1:-1].encode(), urllib.parse.quote(raw, safe="").encode(),
-                      urllib.parse.quote_plus(raw).encode(), base64.b64encode(raw).rstrip(b"="),
-                      base64.urlsafe_b64encode(raw).rstrip(b"=")))
-    # HTTP Basic credentials combine two values (user:password) before encoding.
-    for first in values:
-        for second in values:
-            if first is not second:
-                forms.add(base64.b64encode((first + ":" + second).encode("utf-8", "surrogatepass")).rstrip(b"="))
-    return sorted((form for form in forms if form), key=len, reverse=True)
-
-
-def redact(data, forms):
-    for form in forms:
-        data = data.replace(form, b"[REDACTED]")
-    return data
-
-
-def exchange(args):
-    command = command_of(args)
-    if os.name == "nt":
-        raise RuntimeError("keyrelay exchange needs macOS or Linux (it returns the result on a file descriptor)")
-    for name in ("action", "host", "returns"):
-        if not 0 < len(getattr(args, name) or "") <= 500:
-            raise RuntimeError("--%s is required (maximum 500 characters)" % name)
-    if not args.field:
-        raise RuntimeError("Exchange needs at least one --field for the values you will type")
-    if not args.url:
-        return with_local_broker(exchange, args)
-    base = broker_base(args)
-    fields, _, note = parse_fields(args)
-    for name in args.field_visible:
-        matches = [field for field in fields if field["name"] == name]
-        if len(matches) != 1:
-            raise RuntimeError("--field-visible must name an existing --field")
-        matches[0]["visible"] = True
-    created = api(base + "/api/requests", "POST", {
-        "command": shlex.join(command), "target": "standard input (JSON)", "kind": "exchange",
-        "action": args.action, "host": args.host, "returns": args.returns, "fields": fields, "note": note})
-    if not created.get("supports_exchange") or created.get("field_count") != len(fields):
-        raise RuntimeError("Broker does not support exchange; update the broker first")
-    # Status goes to stderr so stdout carries only the JSON report.
-    bundle = claim(base, created, sys.stderr)
-    values = json.loads(bundle)
-    payload = json.dumps(values)
-    forms = secret_forms([bundle, payload, *values.values()])
-    read_fd, write_fd = os.pipe()
-    env = os.environ.copy()
-    env["KEYRELAY_RESULT_FD"] = str(write_fd)
-    collected = bytearray()
-
-    def drain():
-        # Keep reading past the cap so a large write cannot block the command.
-        while True:
-            chunk = os.read(read_fd, 65536)
-            if not chunk:
-                return
-            if len(collected) <= MAX_RESULT:
-                collected.extend(chunk)
-
-    previous_sigterm = signal.signal(signal.SIGTERM, terminate)
-    try:
-        try:
-            process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, pass_fds=(write_fd,), env=env)
-        finally:
-            # The runner must not hold the write end, or the reader never sees end-of-file.
-            os.close(write_fd)
-        reader = threading.Thread(target=drain, daemon=True)
-        reader.start()
-        try:
-            stdout, stderr = process.communicate((payload + "\n").encode())
-        except BaseException:
-            process.kill()
-            process.wait()
-            raise
-        reader.join(5)
-        code = 128 - process.returncode if process.returncode < 0 else process.returncode
-        sys.stderr.flush()
-        sys.stderr.buffer.write(redact(stdout, forms) + redact(stderr, forms))
-        sys.stderr.flush()
-        report = {"ok": False, "exit_code": code}
-        data = bytes(collected)
-        if reader.is_alive():
-            report["error"] = "The result descriptor stayed open after the command exited; result withheld"
-        elif len(data) > MAX_RESULT:
-            report["error"] = "Result exceeded 64 KiB; withheld"
-        elif not data.strip():
-            report["error"] = "The command wrote no result to KEYRELAY_RESULT_FD"
-        else:
-            try:
-                result = json.loads(data.decode("utf-8"))
-            except ValueError:
-                result = None
-                report["error"] = "The result is not valid UTF-8 JSON; withheld"
-            if "error" not in report:
-                rendered = data + json.dumps(result).encode() + json.dumps(result, ensure_ascii=False).encode("utf-8", "surrogatepass")
-                # Fail closed: a result that carries a typed value is not a derived result.
-                if any(form in rendered for form in forms):
-                    report["error"] = "The result contained a value you typed; withheld"
-                else:
-                    report["result"] = result
-                    report["ok"] = code == 0
-        print(json.dumps(report), flush=True)
-        return code or (0 if report["ok"] else 1)
-    finally:
-        signal.signal(signal.SIGTERM, previous_sigterm)
-        os.close(read_fd)
-        del bundle, values, payload, forms
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    sub = parser.add_subparsers(dest="subcommand", required=True)
+    sub = parser.add_subparsers(dest="action", required=True)
     serve = sub.add_parser("serve", help="Start the localhost broker")
     serve.add_argument("--email", required=True, help="Only this Tailscale user may use the broker")
     serve.add_argument("--port", type=int, default=8765)
@@ -607,30 +443,14 @@ def main():
     runner.add_argument("--field-help", action="append", default=[], metavar="NAME=Instructions", help="Help below a named --field (plain text, maximum 1000 characters; never include secrets)")
     runner.add_argument("--allow-http", action="store_true", help=argparse.SUPPRESS)
     runner.add_argument("command", nargs=argparse.REMAINDER)
-    trade = sub.add_parser("exchange", help="Approve a sign-in or signup in the browser; return only the command's result",
-                           description="You review the action and type the values in the browser. The command receives them as JSON on "
-                           "standard input and writes a JSON result to the file descriptor in $KEYRELAY_RESULT_FD. "
-                           "Stdout carries only {ok, exit_code, result|error}; the command's own output goes to stderr, redacted.")
-    trade.add_argument("--url", help="Optional private broker HTTPS URL; omit for a temporary local broker")
-    trade.add_argument("--action", required=True, help="What approving does, for example 'Create the Immich admin account and an API key'")
-    trade.add_argument("--host", required=True, help="The host the command will contact, shown for review (declared, not enforced)")
-    trade.add_argument("--returns", required=True, help="What the agent receives, for example 'An Immich API key named agent'")
-    trade.add_argument("--field", action="append", default=[], metavar="NAME=Label", help="A value you will type, such as a password; repeat for each")
-    trade.add_argument("--field-visible", action="append", default=[], metavar="NAME", help="Show this field as plain text (for usernames and emails)")
-    trade.add_argument("--field-help", action="append", default=[], metavar="NAME=Instructions", help="Help below a named --field (never include secrets)")
-    trade.add_argument("--note", default="", metavar="Instructions", help="Instructions above the form (never include secrets)")
-    trade.add_argument("--allow-http", action="store_true", help=argparse.SUPPRESS)
-    trade.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     try:
-        if args.subcommand == "serve":
+        if args.action == "serve":
             if args.port < 1 or args.port > 65535:
                 raise RuntimeError("Invalid port")
             server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_factory(args.email, args.auth))
             print("Listening on 127.0.0.1:%d" % args.port, flush=True)
             server.serve_forever()
-        elif args.subcommand == "exchange":
-            return exchange(args)
         else:
             return run(args)
     except KeyboardInterrupt:
