@@ -81,8 +81,9 @@ code{white-space:nowrap}
 .hero .sub{margin-top:var(--s300);max-width:680px}
 .cta-row{margin-top:var(--s400);display:flex;flex-direction:column;align-items:center;gap:var(--s100);width:100%}
 .cmd{display:flex;align-items:center;gap:var(--s100);max-width:100%;padding:var(--s75) var(--s75) var(--s75) var(--s200);border-radius:12px;background:var(--bg-1);border:1px solid var(--bg-3)}
-.cmd code{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--fg-2);min-width:0}
-.cmd code span{color:var(--fg)}
+.cmd{flex-wrap:wrap;justify-content:center}.cmd code{white-space:normal;overflow-wrap:anywhere;color:var(--fg-2);min-width:0;flex:1 1 100%;text-align:left;padding:var(--s50) var(--s50) 0}
+.cmd .kr,.cmd-key .kr{color:var(--fg)}.cmd .sep,.cmd-key .sep{color:var(--fg-3)}.cmd .you,.cmd-key .you{color:var(--accent)}
+.cmd-key{margin:var(--s75) 0 0;text-align:center}.cmd-key code{color:var(--fg-2)}
 br.m{display:none}
 @media(max-width:639px){br.m{display:inline}.cmd{flex-direction:column;align-items:stretch;width:100%;padding:var(--s100)}.cmd code{padding:var(--s50) var(--s50) 0}.cmd .btn{justify-content:center}}
 .status{min-height:20px;color:var(--fg-2)}

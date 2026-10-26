@@ -65,12 +65,13 @@
       <p class="sub t-lg muted ha i4">Keyrelay prints a single use link. You open it, check the command, and type the key. It goes straight to that one command and never into the conversation.</p>
       <div class="cta-row ha i6">
         <div class="cmd">
-          <code class="t-sm"><span>npx keyrelay run</span> --env DEMO_TOKEN -- node -e "…"</code>
+          <code class="t-sm"><span class="kr">npx keyrelay run --env DEMO_TOKEN</span> <span class="sep">--</span> <span class="you">node -e "console.log(process.env.DEMO_TOKEN ? 'Handoff complete.' : 'No value received.')"</span></code>
           <button class="btn btn-primary" type="button" data-copy>
             <svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg>
             Copy the quickstart command
           </button>
         </div>
+        <p class="cmd-key t-xs faint"><span class="kr">keyrelay run --env NAME</span> asks you for the secret, then <span class="sep">--</span> <span class="you">your command</span> runs with it as <code>$NAME</code></p>
         <p class="status t-sm" role="status" aria-live="polite">Try it with a made up value. Needs Node.js 18+ and Python 3.9+.</p>
       </div>
       <p class="proof t-sm ha i7">
@@ -250,12 +251,13 @@
       <p class="lead t-lg muted">Run the quickstart with a made up value, enter <code>demo-value</code> on the form, and watch the terminal print Handoff complete.</p>
       <div class="cta-row">
         <div class="cmd">
-          <code class="t-sm"><span>npx keyrelay run</span> --env DEMO_TOKEN -- node -e "…"</code>
+          <code class="t-sm"><span class="kr">npx keyrelay run --env DEMO_TOKEN</span> <span class="sep">--</span> <span class="you">node -e "console.log(process.env.DEMO_TOKEN ? 'Handoff complete.' : 'No value received.')"</span></code>
           <button class="btn btn-primary" type="button" data-copy>
             <svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg>
             Copy the quickstart command
           </button>
         </div>
+        <p class="cmd-key t-xs faint"><span class="kr">keyrelay run --env NAME</span> asks you for the secret, then <span class="sep">--</span> <span class="you">your command</span> runs with it as <code>$NAME</code></p>
         <p class="status t-sm" role="status" aria-live="polite">Try it with a made up value. Needs Node.js 18+ and Python 3.9+.</p>
       </div>
       <p class="risk t-sm">
