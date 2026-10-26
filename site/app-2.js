@@ -1,5 +1,5 @@
 (() => {
-  const QUICK = `npx keyrelay run --env DEMO_TOKEN -- node -e "console.log(process.env.DEMO_TOKEN ? 'Handoff complete.' : 'No value received.')"`;
+  const QUICK = `npx keyrelay run --env DEMO_TOKEN -- printenv DEMO_TOKEN`;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const app = document.getElementById('app');
 
