@@ -55,11 +55,11 @@ Use narrowly scoped, short-lived credentials where you can. To report a vulnerab
 You need **Node.js 18+** (for `npx`) and **Python 3.9+**. Try it with a made-up value:
 
 ```sh
-npx keyrelay run --env DEMO_TOKEN -- node -e "console.log(process.env.DEMO_TOKEN ? 'Handoff complete.' : 'No value received.')"
+npx keyrelay run --env DEMO_TOKEN -- printenv DEMO_TOKEN
 ```
 
 Open the printed `http://127.0.0.1:…/r/…` link on the same computer. Check the command, enter `demo-value`, and
-select **Send once**. The terminal prints `Handoff complete.` and the broker shuts down. Ctrl+C cancels the handoff.
+select **Send once**. `printenv` prints the value, and Keyrelay shows it as `[REDACTED]`; the broker then shuts down. Ctrl+C cancels the handoff.
 
 To install it permanently, run `npm install -g keyrelay`. Without Node.js, clone this repository and run
 `python3 keyrelay.py` with the same arguments.
