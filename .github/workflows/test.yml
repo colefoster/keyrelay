@@ -10,9 +10,13 @@ jobs:
     # Linux only: on GitHub's macOS runners, signals forwarded through the Node launcher
     # never reach the runner, so the cancellation tests wait out the five-minute expiry.
     strategy:
+      fail-fast: false
       matrix:
-        python: ["3.9", "3.13"]
-    runs-on: ubuntu-latest
+        include:
+          # Ubuntu 24.04 images have no Python 3.9 build; 3.9 is still the supported floor.
+          - {python: "3.9", os: ubuntu-22.04}
+          - {python: "3.13", os: ubuntu-latest}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
