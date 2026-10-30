@@ -63,6 +63,27 @@ Prefer scoped, short-lived credentials. Report vulnerabilities via [SECURITY.md]
 python3 -m unittest discover -s tests
 ```
 
+### Draft Claude Code secret hook
+
+The optional source-checkout prototype in [`hooks/`](hooks/) blocks recognizable
+credentials in submitted prompts and replaces them in successful tool results
+with instructions to use Keyrelay. It is **not installed automatically**.
+
+Run its offline check (Python 3.9+, no dependencies):
+
+```sh
+python3 -m unittest discover -s tests -p 'test_redaction_hook.py'
+printf '%s\n' '{"hook_event_name":"UserPromptSubmit","prompt":"hello"}' \
+  | python3 hooks/redact_secrets.py --event UserPromptSubmit
+```
+
+The clean prompt prints nothing and exits 0. For manual installation, contract
+details, and synthetic-only evaluation, read the
+[specification](docs/redaction-hook-spec.md). **Hooks cannot guarantee credentials
+stay out of local transcripts/history or pre-hook telemetry.** Read
+[`NOTES.md`](NOTES.md) before relying on this draft; keep real credentials in
+Keyrelay's browser form.
+
 ## License
 
 [MIT](LICENSE) © 2026 Cole Foster
