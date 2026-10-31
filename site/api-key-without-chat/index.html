@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Give a coding agent an API key without pasting it into chat · Keyrelay</title>
+<meta name="description" content="Your coding agent needs a token but says not to paste it. Keyrelay prints a one-time local link: you type the key in your browser and it goes to one command, not into the transcript.">
+<link rel="canonical" href="https://keyrelay.colefoster.ca/api-key-without-chat/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Give a coding agent an API key without pasting it into chat">
+<meta property="og:description" content="Type the key into a one-time local form. It goes to one command your agent runs and never into the conversation.">
+<meta property="og:url" content="https://keyrelay.colefoster.ca/api-key-without-chat/">
+<meta property="og:image" content="https://keyrelay.colefoster.ca/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#181818">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script defer src="https://stats.bringfour.com/b4.js" data-website-id="1e90dba0-a189-425a-b388-e430a5e08989"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar">
+<nav class="wrap bar-in" aria-label="Main">
+  <a class="brand" href="/">
+    <svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z"/></svg>
+    Keyrelay
+  </a>
+  <div class="gnav t-sm">
+    <a href="/api-key-without-chat/" aria-current="page" class="wide">Without chat</a>
+    <a href="/enter-api-key-from-phone/" class="wide">From your phone</a>
+    <a href="/how-it-works/">How it works</a>
+    <a href="https://github.com/colefoster/keyrelay">GitHub</a>
+  </div>
+</nav>
+</header>
+
+<main id="main" class="wrap">
+<article class="doc">
+  <p class="kicker t-sm">Guide · local handoff</p>
+  <h1>Give your coding agent an API key without pasting it into chat</h1>
+  <p class="lead t-lg muted">Your agent hits a command that needs a token, then tells you not to paste it. Keyrelay gives you somewhere else to type it: a one-time form on your own computer that hands the key to that one command.</p>
+
+  <h2>Why not paste it, or put it in the command?</h2>
+  <ul>
+    <li><strong>Pasted into chat</strong>, the key lands in the transcript and in the model's context.</li>
+    <li><strong>Typed as an argument</strong>, it lands in shell history and in the process list while the command runs.</li>
+    <li><strong>Saved in a <code>.env</code> file</strong>, it sits in plain text on disk where the agent can read it.</li>
+  </ul>
+  <p>With Keyrelay the agent runs the command, you type the key into a browser form, and the command receives it as an environment variable or on standard input. The agent gets the command's output and exit status, with any echo of the key replaced by <code>[REDACTED]</code>.</p>
+
+  <h2>Who this suits</h2>
+  <div class="fit">
+    <div>
+      <h3>A good fit</h3>
+      <ul>
+        <li>You use a coding agent such as Claude Code or Codex on your own computer.</li>
+        <li>A CLI command or script needs a token, key, or password you don't want the agent to see.</li>
+        <li>You're at the same computer, with a browser.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Something else fits better</h3>
+      <ul>
+        <li>You type into the shell that runs the command yourself: <code>read -s</code> is enough.</li>
+        <li>The secret is already in a vault: a password manager CLI such as <code>op run</code> injects it by name.</li>
+        <li>The sign-in needs 2FA, a CAPTCHA, a passkey, or SSO: Keyrelay can't fill those.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>What you need</h2>
+  <ul>
+    <li>Node.js 18 or newer, for <code>npx</code>.</li>
+    <li>Python 3.9 or newer. Keyrelay is one standard-library Python file with no dependencies.</li>
+    <li>No account, no Tailscale, no server. Local mode runs entirely on your computer.</li>
+  </ul>
+
+  <h2>Try it with a made-up value</h2>
+  <pre><code>npx keyrelay run --env DEMO_TOKEN -- printenv DEMO_TOKEN</code></pre>
+  <p>Open the printed link, type <code>demo-value</code>, and select <strong>Send once</strong>. <code>printenv</code> prints the value and you see <code>[REDACTED]</code> instead. Afterwards <code>$DEMO_TOKEN</code> isn't set in your shell: only that one command got it.</p>
+
+  <h2>Set up your agent once</h2>
+  <p>Add this to your agent instructions, such as <code>AGENTS.md</code> or <code>CLAUDE.md</code>:</p>
+  <pre><code>When a command needs a credential, run it with
+`npx keyrelay run --env VARIABLE -- COMMAND` (or `--stdin` if the tool
+reads it from standard input) and show me the printed link. Leave the
+runner waiting while I enter the credential. For several credentials,
+repeat `--field NAME=Label`; the command receives them as one JSON
+object. Never ask me to paste credentials into the conversation.</code></pre>
+
+  <h2>What happens during a handoff</h2>
+  <ol>
+    <li>The agent runs the command through <code>keyrelay run</code>. Keyrelay starts a temporary broker on <code>127.0.0.1</code> on a random port and prints a one-time link.</li>
+    <li>You open the link on the same computer. The form shows the exact command and the variable it will receive, then a password field.</li>
+    <li>You check the command and select <strong>Send once</strong>. The field clears and the link stops accepting submissions.</li>
+    <li>Keyrelay shuts the temporary broker down, then runs the command with the key as <code>$VARIABLE</code>, or on standard input with <code>--stdin</code>.</li>
+    <li>The agent reads the output and exit status. Plain-text echoes of the key are redacted.</li>
+  </ol>
+  <p>The link works only on the computer running the command, because the broker answers only on loopback and only to its exact <code>127.0.0.1:port</code> address. It also rejects form posts from other origins, so another web page can't submit to it. If nobody sends a key, the request expires after five minutes. Press Ctrl+C to cancel sooner.</p>
+
+  <h2>Variations</h2>
+  <h3>Tools that read the secret from input</h3>
+  <p>Use <code>--stdin</code> instead of <code>--env</code>. Keyrelay writes the secret and a newline to the command's standard input, which suits commands like <code>gh auth login --with-token</code>. It also keeps the key out of the environment, where other programs running as you could read it.</p>
+  <h3>Several values at once</h3>
+  <p>Repeat <code>--field NAME=Label</code> for up to 16 fields. The form shows one password field per label, and the command receives one JSON object keyed by field name.</p>
+  <pre><code>npx keyrelay run --env X_CREDENTIALS_JSON \
+  --field 'apiKey=API Key' --field 'apiSecret=API Key Secret' \
+  -- your-command</code></pre>
+
+  <h2>What it doesn't do</h2>
+  <p>Keyrelay keeps the key out of the conversation. It is not a sandbox. The command you approve gets the real key and can store it, send it, or print it in a form redaction misses, such as base64. A CLI that logs in may save its own token to disk. Read the command on the form before you send, and prefer scoped, short-lived keys. <a href="/how-it-works/">How Keyrelay works</a> covers each limit.</p>
+
+  <p class="meta t-sm">Describes Keyrelay 0.1.5. Full options are in the <a href="https://github.com/colefoster/keyrelay/blob/main/docs/usage.md">usage reference</a>.</p>
+
+  <nav class="next" aria-label="More guides">
+    <a href="/enter-api-key-from-phone/"><b>Enter the key from your phone</b><span>Run a private broker on your Tailnet when you're away from the agent's computer.</span></a>
+    <a href="/how-it-works/"><b>How Keyrelay works</b><span>Every hop the key takes, what is checked, and what is out of scope.</span></a>
+  </nav>
+</article>
+</main>
+
+<footer>
+  <div class="wrap foot t-sm">
+    <span>Keyrelay v0.1.5 · © 2026 Cole Foster</span>
+    <nav aria-label="Footer">
+      <a href="/">Home</a>
+      <a href="https://github.com/colefoster/keyrelay">GitHub</a>
+      <a href="https://www.npmjs.com/package/keyrelay">npm</a>
+      <a href="https://github.com/colefoster/keyrelay/blob/main/SECURITY.md">Security policy</a>
+      <a href="https://github.com/colefoster/keyrelay/blob/main/LICENSE">Terms (MIT license)</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

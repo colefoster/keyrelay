@@ -216,7 +216,7 @@
     <div class="rv">
       <p class="kicker t-sm">Security, honestly</p>
       <h2 class="h-sec" id="sec-h">What Keyrelay does not protect against</h2>
-      <p class="lead t-lg muted">It keeps the key out of the conversation. It is not a sandbox. Use narrowly scoped, short lived credentials where you can, and report a way around it through <a href="https://github.com/colefoster/keyrelay/security/advisories/new">private vulnerability reporting</a>.</p>
+      <p class="lead t-lg muted">It keeps the key out of the conversation. It is not a sandbox. <a href="/how-it-works/">How it works</a> follows the key step by step. Use narrowly scoped, short lived credentials where you can, and report a way around it through <a href="https://github.com/colefoster/keyrelay/security/advisories/new">private vulnerability reporting</a>.</p>
     </div>
     <div class="limits">
       <article class="lim rv"><h3 class="t-lg"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M128,128a8,8,0,0,1-3,6.25l-40,32a8,8,0,1,1-10-12.5L107.19,128,75,102.25a8,8,0,1,1,10-12.5l40,32A8,8,0,0,1,128,128Zm48,24H136a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm56-96V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Z"/></svg>A malicious agent or command</h3><p class="t-base muted">The command you approve receives the real secret. It can store it, send it anywhere, or print it in a form redaction misses, such as base64. Read the command on the form before you send.</p></article>
@@ -236,7 +236,7 @@
     <div class="faq rv">
       <details><summary class="t-base"><span>What do I need installed?</span><span class="pm"></span></summary><p class="a t-base muted">Node.js 18 or newer for <code>npx</code>, and Python 3.9 or newer. To install it permanently, run <code>npm install -g keyrelay</code>. Without Node.js, clone the repository and run <code>python3 keyrelay.py</code> with the same arguments.</p></details>
       <details><summary class="t-base"><span>When should I use <code>--stdin</code> instead of <code>--env</code>?</span><span class="pm"></span></summary><p class="a t-base muted"><code>--env NAME</code> sets the secret as an environment variable, which same user tools such as <code>ps -E</code> or <code>/proc/PID/environ</code> can read. <code>--stdin</code> writes it, followed by a newline, to standard input instead. Use it for tools that read the secret from input, such as <code>gh auth login --with-token</code>.</p></details>
-      <details><summary class="t-base"><span>Can I type the key on my phone?</span><span class="pm"></span></summary><p class="a t-base muted">Yes, with a persistent broker behind Tailscale Serve that is reachable only on your Tailnet. Pass it to the runner with <code>--url</code>. Never use Tailscale Funnel or a public reverse proxy. The secret still goes to the command on the machine running <code>keyrelay run</code>.</p></details>
+      <details><summary class="t-base"><span>Can I type the key on my phone?</span><span class="pm"></span></summary><p class="a t-base muted">Yes, with a persistent broker behind Tailscale Serve that is reachable only on your Tailnet. Pass it to the runner with <code>--url</code>. Never use Tailscale Funnel or a public reverse proxy. The secret still goes to the command on the machine running <code>keyrelay run</code>. <a href="/enter-api-key-from-phone/">Set up a phone handoff</a>.</p></details>
       <details><summary class="t-base"><span>What won't it handle?</span><span class="pm"></span></summary><p class="a t-base muted">Sign ins that need a person at the page, such as 2FA, CAPTCHAs, passkeys, or SSO. Use your agent's own browser tool for those. Commands that need an interactive terminal aren't supported either.</p></details>
       <details><summary class="t-base"><span>Why not <code>read -s</code>, a password manager CLI, or a <code>.env</code> file?</span><span class="pm"></span></summary><p class="a t-base muted"><code>read -s</code> works when you type into the shell that runs the command, which an agent's tool calls usually aren't. A CLI like 1Password's <code>op run</code> fits if the secret is already in a vault and the agent may request it by name. A <code>.env</code> file sits in plain text where the agent can read it, so keep it for keys you'd let the agent see.</p></details>
       <details><summary class="t-base"><span>How do I cancel a request?</span><span class="pm"></span></summary><p class="a t-base muted">Press Ctrl+C in the terminal. Unclaimed requests also expire on their own after five minutes.</p></details>
@@ -274,6 +274,9 @@
   <div class="wrap foot t-sm">
     <span>Keyrelay v0.1.5 · © 2026 Cole Foster</span>
     <nav aria-label="Footer">
+      <a href="/api-key-without-chat/">Guide: without chat</a>
+      <a href="/enter-api-key-from-phone/">Guide: from your phone</a>
+      <a href="/how-it-works/">How it works, in depth</a>
       <a href="https://github.com/colefoster/keyrelay">GitHub</a>
       <a href="https://www.npmjs.com/package/keyrelay">npm</a>
       <a href="https://github.com/colefoster/keyrelay/blob/main/SECURITY.md">Security policy</a>
