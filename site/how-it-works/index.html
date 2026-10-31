@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How Keyrelay works: the credential handoff, step by step · Keyrelay</title>
+<meta name="description" content="Follow a key from your browser to one command: the local broker, Host and Origin checks, claim tokens, five-minute expiry, redaction, and what Keyrelay does not protect against.">
+<link rel="canonical" href="https://keyrelay.colefoster.ca/how-it-works/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="How Keyrelay works, and what it trusts">
+<meta property="og:description" content="Every hop a key takes, every check on the way, and what is out of scope.">
+<meta property="og:url" content="https://keyrelay.colefoster.ca/how-it-works/">
+<meta property="og:image" content="https://keyrelay.colefoster.ca/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#181818">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script defer src="https://stats.bringfour.com/b4.js" data-website-id="1e90dba0-a189-425a-b388-e430a5e08989"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar">
+<nav class="wrap bar-in" aria-label="Main">
+  <a class="brand" href="/">
+    <svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z"/></svg>
+    Keyrelay
+  </a>
+  <div class="gnav t-sm">
+    <a href="/api-key-without-chat/" class="wide">Without chat</a>
+    <a href="/enter-api-key-from-phone/" class="wide">From your phone</a>
+    <a href="/how-it-works/" aria-current="page">How it works</a>
+    <a href="https://github.com/colefoster/keyrelay">GitHub</a>
+  </div>
+</nav>
+</header>
+
+<main id="main" class="wrap">
+<article class="doc">
+  <p class="kicker t-sm">Guide · trust and architecture</p>
+  <h1>How Keyrelay works, and what it trusts</h1>
+  <p class="lead t-lg muted">Keyrelay is one standard-library Python file of 444 lines and a small npm launcher. This guide follows a key from your keyboard to the command, names every check on the way, and lists what Keyrelay leaves out of scope.</p>
+
+  <h2>The path a key takes</h2>
+  <ol class="flow">
+    <li><b>1. Coding agent</b><span>Runs <code>keyrelay run --env NAME -- command</code> as an ordinary tool call. It sees the printed link and, later, the command's output.</span></li>
+    <li><b>2. Runner (<code>keyrelay run</code>)</b><span>Starts a temporary broker on <code>127.0.0.1</code>, creates a request with the command and variable name, and receives a request ID plus a separate claim token. It prints only the link.</span></li>
+    <li><b>3. Broker</b><span>Holds the request in memory and serves the form. In local mode it lives inside the runner and stops once the key is collected.</span></li>
+    <li><b>4. Your browser</b><span>Shows the exact command and variable. You type the key and select Send once. The form clears its fields before it posts.</span></li>
+    <li><b>5. Runner again</b><span>Polls every two seconds with its claim token, collects the key, and the broker deletes the request.</span></li>
+    <li><b>6. The command</b><span>Receives the key as <code>$NAME</code> or on standard input. Its output and exit status go back to the agent with exact echoes of the key replaced by <code>[REDACTED]</code>.</span></li>
+    <li class="opt"><b>Optional: Tailscale mode</b><span>With <code>--url</code>, steps 3 and 4 move to a persistent broker behind Tailscale Serve, so you can use another device. The key still reaches only the command on the runner's machine. See <a href="/enter-api-key-from-phone/">Enter an API key from your phone</a>.</span></li>
+  </ol>
+
+  <h2>What is checked</h2>
+  <h3>Who can open the form</h3>
+  <ul>
+    <li><strong>Local mode:</strong> the broker binds to <code>127.0.0.1</code> on a random port and answers only when the connection comes from <code>127.0.0.1</code> and the <code>Host</code> header is exactly <code>127.0.0.1:port</code>. That blocks DNS-rebinding pages that point another name at your machine.</li>
+    <li><strong>Tailscale mode:</strong> the <code>Host</code> header must match <code>--host</code> exactly, and the <code>Tailscale-User-Login</code> header set by Tailscale Serve must match <code>--email</code>.</li>
+    <li><strong>Both modes:</strong> a form post that carries an <code>Origin</code> from another site is refused.</li>
+  </ul>
+  <h3>Who can collect the key</h3>
+  <ul>
+    <li>The link contains a random request ID. Collecting the key needs a different random token that only the runner received, compared in constant time. Having the link lets you submit, not read.</li>
+    <li>A request accepts one submission. A second one is refused, and collecting the key deletes the request.</li>
+  </ul>
+  <h3>The form page itself</h3>
+  <ul>
+    <li>Sent with <code>Cache-Control: no-store</code>, <code>Referrer-Policy: no-referrer</code>, a Content Security Policy that only allows requests back to the broker, and <code>noindex</code>.</li>
+    <li>The broker never logs request URLs or headers.</li>
+    <li>Command, variable names, labels, and notes are shown as plain text. They are not secret, so never put a credential in them.</li>
+  </ul>
+
+  <h2>How long a request lives</h2>
+  <ul>
+    <li><strong>Waiting:</strong> up to five minutes from creation. Expired requests are removed on the broker's next request.</li>
+    <li><strong>Collected:</strong> deleted from the broker as soon as the runner claims the key.</li>
+    <li><strong>Cancelled:</strong> Ctrl+C on a local runner stops its broker and drops its requests. A persistent Tailscale broker keeps an abandoned request until it expires.</li>
+    <li><strong>Restarted:</strong> requests live only in memory, so restarting a broker discards everything waiting.</li>
+    <li><strong>Limits:</strong> at most 100 waiting requests per broker, 16 fields per request, and 16,384 characters per submission.</li>
+  </ul>
+
+  <h2>What redaction covers</h2>
+  <p>Before output reaches the agent, Keyrelay replaces exact copies of the submitted value in standard output and standard error. With several fields, it also replaces each field value of four bytes or more; shorter values would redact ordinary text like <code>yes</code>. Anything the command transforms first, such as a base64 or URL-encoded copy, is not caught. Redaction is a safety net for accidental echoes, not a guarantee.</p>
+
+  <h2>What Keyrelay does not protect against</h2>
+  <ul>
+    <li><strong>A malicious agent or command.</strong> The command you approve gets the real key and can store, send, or transform it. Keyrelay isn't a sandbox. Read the command on the form.</li>
+    <li><strong>Other processes running as you.</strong> They can read a process's memory, and same-user tools can read its environment. Use <code>--stdin</code> if the environment matters.</li>
+    <li><strong>Memory erasure.</strong> Python can't reliably wipe strings, so collected keys are deleted, not scrubbed.</li>
+    <li><strong>What the target tool keeps.</strong> A CLI that logs in may write its own session or token to disk.</li>
+    <li><strong>Your whole Tailnet,</strong> in Tailscale mode. Any device signed in as the allowed user can open a pending link, and any process on the broker machine can reach its local port.</li>
+    <li><strong>Encryption at rest.</strong> Waiting keys sit in the broker's memory without extra encryption. Local mode uses plain HTTP over loopback. Tailscale mode uses HTTPS.</li>
+  </ul>
+  <p>Prefer scoped, short-lived credentials. Found a way for something other than the approved command to get a key? Report it through <a href="https://github.com/colefoster/keyrelay/security/advisories/new">private vulnerability reporting</a>.</p>
+
+  <h2>Check it yourself</h2>
+  <p>Everything above is in <a href="https://github.com/colefoster/keyrelay/blob/main/keyrelay.py">keyrelay.py</a>. The checks live in <code>handler_factory</code>, the request lifecycle in <code>route</code>, <code>claim</code> and <code>run</code>, and redaction at the end of <code>run</code>. The test suite runs with <code>python3 -m unittest discover -s tests</code>.</p>
+
+  <p class="meta t-sm">Written for Keyrelay 0.1.5 and kept in step with the code by its maintainer, Cole Foster. If the code and this page disagree, the code wins: please <a href="https://github.com/colefoster/keyrelay/issues">open an issue</a>.</p>
+
+  <nav class="next" aria-label="More guides">
+    <a href="/api-key-without-chat/"><b>Local handoff</b><span>Give your agent a key without pasting it into chat.</span></a>
+    <a href="/enter-api-key-from-phone/"><b>From your phone</b><span>A private broker on your Tailnet.</span></a>
+  </nav>
+</article>
+</main>
+
+<footer>
+  <div class="wrap foot t-sm">
+    <span>Keyrelay v0.1.5 · © 2026 Cole Foster</span>
+    <nav aria-label="Footer">
+      <a href="/">Home</a>
+      <a href="https://github.com/colefoster/keyrelay">GitHub</a>
+      <a href="https://www.npmjs.com/package/keyrelay">npm</a>
+      <a href="https://github.com/colefoster/keyrelay/blob/main/SECURITY.md">Security policy</a>
+      <a href="https://github.com/colefoster/keyrelay/blob/main/LICENSE">Terms (MIT license)</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Enter an API key from your phone over Tailscale · Keyrelay</title>
+<meta name="description" content="Run a private Keyrelay broker behind Tailscale Serve so you can type an API key on your phone while your coding agent runs on another machine. Setup, checks, and limits.">
+<link rel="canonical" href="https://keyrelay.colefoster.ca/enter-api-key-from-phone/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Enter an API key from your phone over Tailscale">
+<meta property="og:description" content="A private Keyrelay broker on your Tailnet lets you hand a key to your agent from another device.">
+<meta property="og:url" content="https://keyrelay.colefoster.ca/enter-api-key-from-phone/">
+<meta property="og:image" content="https://keyrelay.colefoster.ca/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#181818">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script defer src="https://stats.bringfour.com/b4.js" data-website-id="1e90dba0-a189-425a-b388-e430a5e08989"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar">
+<nav class="wrap bar-in" aria-label="Main">
+  <a class="brand" href="/">
+    <svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z"/></svg>
+    Keyrelay
+  </a>
+  <div class="gnav t-sm">
+    <a href="/api-key-without-chat/" class="wide">Without chat</a>
+    <a href="/enter-api-key-from-phone/" aria-current="page" class="wide">From your phone</a>
+    <a href="/how-it-works/">How it works</a>
+    <a href="https://github.com/colefoster/keyrelay">GitHub</a>
+  </div>
+</nav>
+</header>
+
+<main id="main" class="wrap">
+<article class="doc">
+  <p class="kicker t-sm">Guide · Tailscale handoff</p>
+  <h1>Enter an API key from your phone over Tailscale</h1>
+  <p class="lead t-lg muted">A local Keyrelay link opens only on the computer running the command. When your agent runs on a desktop or home server and you're somewhere else, run a private Keyrelay broker on your Tailnet and type the key on your phone.</p>
+
+  <h2>Who this suits</h2>
+  <div class="fit">
+    <div>
+      <h3>A good fit</h3>
+      <ul>
+        <li>You already use Tailscale, and your phone and the agent's machine are on the same Tailnet.</li>
+        <li>You leave a coding agent working and check in from another device.</li>
+        <li>You can keep a small always-on process running on a machine you trust.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Stay with local mode</h3>
+      <ul>
+        <li>You're at the computer running the agent. <a href="/api-key-without-chat/">Local mode</a> needs no setup at all.</li>
+        <li>You don't use Tailscale, or other people sign in to your Tailnet as you.</li>
+        <li>The only way to reach the broker would be the public internet. Don't do that.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>What you need</h2>
+  <ul>
+    <li>Tailscale on your phone and on the machine that will run the broker, with HTTPS certificates enabled for your Tailnet so <a href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> can serve HTTPS.</li>
+    <li>Python 3.9 or newer on the broker machine, and Node.js 18 or newer wherever you use <code>npx</code>.</li>
+    <li>The machine running the agent must reach the broker's HTTPS address. The broker can run on that same machine or on another one in your Tailnet.</li>
+  </ul>
+
+  <h2>Set it up</h2>
+  <p>All names below are examples. Use your own Tailscale login and your machine's Tailnet name.</p>
+  <h3>1. Start the broker</h3>
+  <pre><code>npx keyrelay serve --email you@example.com --host your-broker.your-tailnet.ts.net
+tailscale serve --bg http://127.0.0.1:8765</code></pre>
+  <p>The broker listens on <code>127.0.0.1:8765</code> only. Tailscale Serve puts it on your Tailnet over HTTPS and tells it who is signed in.</p>
+  <h3>2. Point the runner at it</h3>
+  <pre><code>npx keyrelay run --url https://your-broker.your-tailnet.ts.net --env DEMO_TOKEN -- printenv DEMO_TOKEN</code></pre>
+  <p>Open the printed link on your phone, type a made-up value, and send it. The command runs on the agent's machine and prints <code>[REDACTED]</code>.</p>
+  <h3>3. Tell your agent</h3>
+  <p>Use the same instruction as local mode, with <code>--url https://your-broker.your-tailnet.ts.net</code> added to the command pattern.</p>
+  <p>To keep the broker running on Linux, the repository ships a <a href="https://github.com/colefoster/keyrelay/blob/main/keyrelay.service">systemd unit</a>. The <a href="https://github.com/colefoster/keyrelay/blob/main/docs/usage.md">usage reference</a> has the install commands.</p>
+
+  <h2>What the broker checks</h2>
+  <ul>
+    <li><strong>The exact host.</strong> A request is refused unless its <code>Host</code> header matches <code>--host</code> exactly.</li>
+    <li><strong>Your Tailscale identity.</strong> Tailscale Serve adds a <code>Tailscale-User-Login</code> header, and the broker refuses any other login than <code>--email</code>.</li>
+    <li><strong>HTTPS only.</strong> The runner refuses a <code>--url</code> that isn't <code>https://</code>.</li>
+    <li><strong>Same-origin posts.</strong> The form rejects submissions from other web origins.</li>
+    <li><strong>A separate claim token.</strong> The link lets you view the form and submit once. Only the runner that created the request holds the token to collect the key, so opening the link can't retrieve it.</li>
+  </ul>
+
+  <h2>Rules that keep it private</h2>
+  <ul>
+    <li><strong>Never expose the broker with Tailscale Funnel or a public reverse proxy.</strong> The identity check assumes only Tailscale Serve can reach it.</li>
+    <li><strong>Keep it bound to localhost.</strong> Any process on the broker machine can still connect to that port directly and claim to be you, so run the broker on a machine you trust.</li>
+    <li><strong>Treat your Tailnet login as the key to the form.</strong> Any device signed in as the allowed user can open a pending link.</li>
+  </ul>
+
+  <h2>How it differs from local mode</h2>
+  <ul>
+    <li>The key travels from your phone to the broker and on to the runner over HTTPS. It still goes only to the command on the machine running <code>keyrelay run</code>.</li>
+    <li>The broker keeps waiting requests in memory, never on disk, and doesn't log requests. Restarting it discards them.</li>
+    <li>If you cancel the runner, its request stays on the broker until it expires five minutes after it was created, and is removed on the broker's next request after that.</li>
+    <li>A broker accepts at most 100 waiting requests at a time.</li>
+  </ul>
+
+  <p class="meta t-sm">Describes Keyrelay 0.1.5. <a href="/how-it-works/">How Keyrelay works</a> covers the limits that apply in both modes.</p>
+
+  <nav class="next" aria-label="More guides">
+    <a href="/api-key-without-chat/"><b>Local handoff</b><span>No setup: a one-time link on the computer running the command.</span></a>
+    <a href="/how-it-works/"><b>How Keyrelay works</b><span>Every hop the key takes, what is checked, and what is out of scope.</span></a>
+  </nav>
+</article>
+</main>
+
+<footer>
+  <div class="wrap foot t-sm">
+    <span>Keyrelay v0.1.5 · © 2026 Cole Foster</span>
+    <nav aria-label="Footer">
+      <a href="/">Home</a>
+      <a href="https://github.com/colefoster/keyrelay">GitHub</a>
+      <a href="https://www.npmjs.com/package/keyrelay">npm</a>
+      <a href="https://github.com/colefoster/keyrelay/blob/main/SECURITY.md">Security policy</a>
+      <a href="https://github.com/colefoster/keyrelay/blob/main/LICENSE">Terms (MIT license)</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
