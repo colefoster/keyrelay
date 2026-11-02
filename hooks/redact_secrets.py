@@ -41,7 +41,9 @@ RULES = (
 )
 ASSIGNMENT = re.compile(
     r"(?<![\w.-])(?P<name>[A-Za-z_][A-Za-z0-9_.-]{0,80})[\"']?\s*[:=]\s*"
-    r"[\"']?(?P<value>[A-Za-z0-9_+/=.\-]{24,512})(?![A-Za-z0-9_+/=.\-])"
+    # Unbounded so long runs don't backtrack past the 5 s hook timeout (fail-open);
+    # secret_assignment enforces the 512 cap through TOKEN_VALUE.
+    r"[\"']?(?P<value>[A-Za-z0-9_+/=.\-]{24,})(?![A-Za-z0-9_+/=.\-])"
 )
 SECRET_NAME = re.compile(
     r"(?:^|[_.-])(?:api[_-]?key|(?:access|auth|api|client)[_-]?(?:token|secret)|"
