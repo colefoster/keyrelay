@@ -165,11 +165,6 @@ Note what this example doesn't protect: `gh` stores the token in its own credent
 Yes. Keyrelay shows you the exact command before you send, and that review is the control. If you don't trust the
 agent to choose commands, a credential handoff won't help. Use a proxy that enforces a request policy instead.
 
-**Can I enter the key from my phone?**
-Yes. Keyrelay can run a persistent broker behind Tailscale Serve, restricted to one Tailscale identity, with
-`keyrelay serve` on the host and `keyrelay run --url` from the agent. Don't expose it through Tailscale Funnel or a
-public reverse proxy. Any of your own devices on the tailnet can open a pending link.
-
 **Is `.env` with direnv ever fine?**
 Yes, for development keys that you'd be comfortable letting the agent read. The value sits in plain text on disk,
 so treat it as visible to the agent.

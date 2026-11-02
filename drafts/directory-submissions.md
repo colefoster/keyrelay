@@ -42,7 +42,7 @@ Re-check the star count and the list's latest rules on the day you submit.
 
 ```diff
  - **[SAKO](https://github.com/Thakay/sako)** `⭐ 0` — Task ledger and finish gate for coding agents: …
-+- **[Keyrelay](https://github.com/colefoster/keyrelay)** `⭐ 0` — One-time credential handoff for coding agents: `npx keyrelay run --env NAME -- command` prints a local link, you type the key in a browser form, and only that command receives it, with echoes redacted from the output the agent reads. Optional Tailscale broker for entering keys from a phone. MIT.
++- **[Keyrelay](https://github.com/colefoster/keyrelay)** `⭐ 0` — One-time credential handoff for coding agents: `npx keyrelay run --env NAME -- command` prints a local link, you type the key in a browser form, and only that command receives it, with echoes redacted from the output the agent reads. MIT.
 ```
 
 - PR body:
