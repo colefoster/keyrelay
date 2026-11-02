@@ -27,7 +27,7 @@ Drafted 2026-11-02. Follows the "distribution without shilling" order in
 ### Phase 0 status (2026-11-02)
 
 - Done: 0.1.6 tagged and pushed; guide pages and sitemap return 200; GitHub topics added.
-- Waiting on Cole: `npm login && npm publish` for 0.1.6.
+- Published: npm 0.1.6 (2026-11-02), matching `main`.
 - Skipped: the phone round trip. Cole's iPhone resolved no `ts.net` names at all (hil failed too), a phone
   DNS problem rather than a Keyrelay one. The phone flow stays out of launch copy until it's tested; the
   directory entry and the post's FAQ no longer mention it.
