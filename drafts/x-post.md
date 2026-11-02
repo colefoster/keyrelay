@@ -1,4 +1,6 @@
-# X post draft (not posted)
+# X post (posted 2026-11-02)
+
+Live: https://x.com/cole_0x4A3B7C/status/2117342661921120672 (option 1 plus the reply, as a thread).
 
 Drafted 2026-11-02 for @cole_0x4A3B7C, in Cole's X voice: casual, funny, a bit self-deprecating, chill. Cole
 posts it himself, with `docs/keyrelay-demo.gif` attached to the main post. Pick one main post; the reply works
