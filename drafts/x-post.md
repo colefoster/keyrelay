@@ -4,14 +4,14 @@ Drafted 2026-11-02 for @cole_0x4A3B7C, in Cole's X voice: casual, funny, a bit s
 posts it himself, with `docs/keyrelay-demo.gif` attached to the main post. Pick one main post; the reply works
 with any of them. Lengths count each link as 23 characters, against the 280 limit.
 
-## Option 1 (277)
+## Chosen: option 1 (269)
 
 > every coding agent: "please don't paste your API key in chat"
 >
 > also every coding agent: *offers no other way to give it the key*
 >
-> so I made a thing. agent runs the command through keyrelay, I get a one-time link, type the key, only that
-> command sees it
+> so now the agent runs the command through keyrelay, I get a one-time link, type the key, only that command
+> sees it
 >
 > github.com/colefoster/keyrelay
 
