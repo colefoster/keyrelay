@@ -8,7 +8,7 @@ from html.parser import HTMLParser
 SITE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "site")
 ORIGIN = "https://keyrelay.colefoster.ca"
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", "path"}
-GUIDES = ["api-key-without-chat", "enter-api-key-from-phone", "how-it-works"]
+GUIDES = ["api-key-without-chat", "enter-api-key-from-phone", "how-it-works", "agent-api-access-without-keys"]
 
 
 class Page(HTMLParser):

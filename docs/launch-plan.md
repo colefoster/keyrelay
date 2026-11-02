@@ -60,6 +60,10 @@ awesome-claude-code and skill directories. Build only if Phase 1 shows signal.
    from the homepage and sitemap.
 2. Optional: cross-link from colefoster.ca, where a Keyrelay exhibit already exists.
 
+### Phase 2 status (2026-11-02)
+
+- Published at https://keyrelay.colefoster.ca/agent-api-access-without-keys/, linked from the homepage footer and sitemap. The redaction-hook paragraph was dropped, per Phase 0.
+
 ## Phase 3: one personal share
 
 Cole's call, in his voice, drafted from his notes. Pick one, spaced a few days after Phase 2:

@@ -3,7 +3,7 @@ title: "Giving AI coding agents API access without giving them the keys"
 description: "Why env vars, pasted keys, and readable config files leak credentials to coding agents, and how brokers, scoped tokens, and a one-time handoff like Keyrelay keep the key out of the transcript."
 slug: agent-api-access-without-keys
 date: 2026-10-29
-status: draft
+status: published
 tags: [coding-agents, security, credentials, keyrelay]
 og_summary: >-
   Coding agents need API keys to do real work, but the usual ways of handing

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Giving AI coding agents API access without giving them the keys · Keyrelay</title>
+<meta name="description" content="Why env vars, pasted keys, and readable config files leak credentials to coding agents, and how brokers, scoped tokens, and a one-time handoff keep the key out of the transcript.">
+<link rel="canonical" href="https://keyrelay.colefoster.ca/agent-api-access-without-keys/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Giving AI coding agents API access without giving them the keys">
+<meta property="og:description" content="Grant the agent's command authority to call an API without letting the model see the key: where the usual approaches leak, and the patterns that don't.">
+<meta property="og:url" content="https://keyrelay.colefoster.ca/agent-api-access-without-keys/">
+<meta property="og:image" content="https://keyrelay.colefoster.ca/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#181818">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script defer src="https://stats.bringfour.com/b4.js" data-website-id="1e90dba0-a189-425a-b388-e430a5e08989"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar">
+<nav class="wrap bar-in" aria-label="Main">
+  <a class="brand" href="/">
+    <svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z"/></svg>
+    Keyrelay
+  </a>
+  <div class="gnav t-sm">
+    <a href="/api-key-without-chat/" class="wide">Without chat</a>
+    <a href="/enter-api-key-from-phone/" class="wide">From your phone</a>
+    <a href="/how-it-works/">How it works</a>
+    <a href="https://github.com/colefoster/keyrelay">GitHub</a>
+  </div>
+</nav>
+</header>
+
+<main id="main" class="wrap">
+<article class="doc">
+  <p class="kicker t-sm">Article · credentials and coding agents</p>
+  <h1>Giving AI coding agents API access without giving them the keys</h1>
+  <p class="lead t-lg muted">A coding agent that can run commands will eventually need a credential: an API key to call a service, a token to publish a package, a password to set up a self-hosted app. This article explains how to give the agent's command that credential without putting the value into the conversation, where the model reads it, logs keep it, and anything the model later writes can repeat it.</p>
+  <p>It's for developers who run coding agents such as Claude Code or Codex against real accounts. It assumes that you trust the agent to run commands, but don't want a long-lived secret in its context.</p>
+
+  <h2>The goal</h2>
+  <p>Separate two things that are easy to conflate:</p>
+  <ul>
+    <li><strong>Authority</strong>: the agent's command is allowed to call the API.</li>
+    <li><strong>Knowledge</strong>: the model has seen the key's value.</li>
+  </ul>
+  <p>The agent needs the first. It almost never needs the second. Every pattern below is a way to grant authority while withholding knowledge.</p>
+
+  <h2>Three common approaches that leak the key</h2>
+  <h3>Exporting the key in the agent's shell</h3>
+  <p>You run <code>export OPENAI_API_KEY=...</code> in the terminal where the agent works, or put it in a shell profile.</p>
+  <p><strong>What goes wrong:</strong> the agent's shell is the model's shell. The model can run <code>env</code>, <code>printenv</code>, or <code>echo $OPENAI_API_KEY</code>, and the output comes straight back into its context. A routine debugging step is enough; no malice is required. The key also reaches every command the agent runs in that session, not only the one that needs it.</p>
+  <h3>Pasting the key into the prompt</h3>
+  <p>You paste the key into the chat and ask the agent to use it.</p>
+  <p><strong>What goes wrong:</strong> the value is now part of the conversation. It's sent to the model provider, stored in the local transcript and history, and available to the model for the rest of the session. The model may also put it somewhere permanent, such as a command line (visible in the process list and shell history), a config file, or a commit.</p>
+  <h3>A config file the agent can read</h3>
+  <p>You put the key in <code>.env</code>, <code>~/.config/tool/credentials</code>, or a similar file, and point the tool at it.</p>
+  <p><strong>What goes wrong:</strong> if the agent can read files, it can read that one. A <code>cat .env</code> or a broad search over the project brings the value into context just as <code>printenv</code> does. This approach is acceptable only for keys that you would be comfortable letting the agent see.</p>
+
+  <h2>Patterns that keep the key out of the model's context</h2>
+  <h3>Inject at the boundary with a credential proxy or broker</h3>
+  <p>The command never holds the key. It sends requests to a local proxy or broker, and the broker adds the credential on the way out. The model can see the proxy's address but never the key. This is the strongest pattern for repeated API calls. It takes more setup: the proxy must understand the API's authentication and decide which requests to sign.</p>
+  <h3>Use scoped, short-lived tokens</h3>
+  <p>Whatever reaches the command should be worth as little as possible if it leaks. Prefer a token limited to one repository, one project, or read-only access, with an expiry measured in hours or days rather than never. Many providers support this through fine-grained personal access tokens or OAuth token exchange. Scoping doesn't keep the value out of the transcript, but it limits the damage when it gets there.</p>
+  <h3>Hand off through a person, outside the transcript</h3>
+  <p>When a person holds the key and a waiting command needs it once, the person can enter it directly into that command's environment through a channel the model can't read. The model knows that a credential was supplied, but not what it was. This works well for one-off setup tasks, such as logging a CLI in or creating the first admin account on a self-hosted service.</p>
+  <p>A password manager CLI covers the case where the key is already in a vault: <code>op run</code> from 1Password, for example, resolves secret references when the command starts. A human handoff covers the case where it isn't.</p>
+
+  <h2>Where Keyrelay fits</h2>
+  <p><a href="https://github.com/colefoster/keyrelay">Keyrelay</a> is a small, MIT-licensed tool that implements the human handoff. It's one standard-library Python file and a short npm launcher, it runs locally, and it needs no account.</p>
+  <p>The agent runs the command through <code>keyrelay run</code>. Keyrelay starts a broker on <code>127.0.0.1</code>, prints a one-time link, and waits. You open the link, check the exact command that will receive the secret, type the value, and select <strong>Send once</strong>. Keyrelay runs that one command with the value as an environment variable (<code>--env NAME</code>) or on standard input (<code>--stdin</code>), then prints the command's output with any exact copy of the value replaced by <code>[REDACTED]</code>.</p>
+  <p>Each link works once and expires after five minutes. The broker accepts only its exact loopback <code>Host</code> header and same-origin form posts. The value isn't put in command arguments or shell history, and it isn't set in the agent's shell afterward.</p>
+  <h3>What it doesn't do</h3>
+  <p>Keyrelay is a handoff, not a sandbox or a proxy. Be clear about its limits before you rely on it:</p>
+  <ul>
+    <li><strong>The command gets the real key.</strong> A command that you approve can store, send, or transform the value. Redaction only catches exact copies, so an encoded value such as base64 passes through. Read the command before you send.</li>
+    <li><strong>Other processes running as you</strong> can read a process's environment and memory. Use <code>--stdin</code> if that matters.</li>
+    <li><strong>The target tool may keep its own copy.</strong> For example, a CLI that you log in may save a token to disk where the agent can later read it.</li>
+    <li><strong>Output is buffered.</strong> Keyrelay captures the command's output until it exits so that it can redact it. Long or interactive commands don't show progress.</li>
+    <li><strong>It handles one run at a time.</strong> For repeated API calls, a broker that injects credentials at the boundary is the better pattern.</li>
+    <li><strong>It can't handle sign-ins that need a person on the page</strong>, such as 2FA prompts, CAPTCHAs, passkeys, or SSO.</li>
+  </ul>
+
+  <h2>Worked example: log in the GitHub CLI without pasting a token</h2>
+  <p>This example uses a fine-grained GitHub token, which follows the scoped-token pattern, and Keyrelay for the handoff. It needs Node.js 18 or later and Python 3.9 or later.</p>
+  <ol>
+    <li>Try the handoff first with a made-up value:
+      <pre><code>npx keyrelay run --env DEMO_TOKEN -- printenv DEMO_TOKEN</code></pre>
+      Open the printed link, enter any text, and select <strong>Send once</strong>. The command prints the value, and the output shows <code>[REDACTED]</code> instead. <code>$DEMO_TOKEN</code> isn't set in your shell afterward.</li>
+    <li>Add this instruction to your agent's instructions file, so that it uses the same route for real credentials:
+      <pre><code>When a command needs a credential, run it with
+`npx keyrelay run --env VARIABLE -- COMMAND` (or `--stdin` if the tool
+reads it from standard input) and show me the printed link. Leave the
+runner waiting while I enter the credential. For several credentials,
+repeat `--field NAME=Label`; the command receives them as one JSON
+object. Never ask me to paste credentials into the conversation.</code></pre></li>
+    <li>In GitHub, create a fine-grained personal access token limited to the repositories and permissions the task needs, with a short expiry.</li>
+    <li>Ask the agent to log in the GitHub CLI. It runs:
+      <pre><code>npx keyrelay run --stdin -- gh auth login --with-token</code></pre>
+      <code>gh auth login --with-token</code> reads the token from standard input, so <code>--stdin</code> is the right mode.</li>
+    <li>Open the link the agent shows you, confirm that the command is <code>gh auth login --with-token</code>, paste the token, and select <strong>Send once</strong>. The agent sees the command's exit status and redacted output.</li>
+  </ol>
+  <p>Note what this example doesn't protect: <code>gh</code> stores the token in its own credential store, and the agent can use <code>gh</code> afterward. That's the point of logging in, and it's why the token should be scoped and short-lived.</p>
+
+  <h2>FAQ</h2>
+  <h3>Doesn't the agent still control which command gets the key?</h3>
+  <p>Yes. Keyrelay shows you the exact command before you send, and that review is the control. If you don't trust the agent to choose commands, a credential handoff won't help. Use a proxy that enforces a request policy instead.</p>
+  <h3>Is <code>.env</code> with direnv ever fine?</h3>
+  <p>Yes, for development keys that you'd be comfortable letting the agent read. The value sits in plain text on disk, so treat it as visible to the agent.</p>
+  <h3>Does Keyrelay store or log the key?</h3>
+  <p>Pending requests are held in the broker's memory and removed when the runner claims the value or the request expires. Python can't guarantee that memory is scrubbed, and the command you run may save its own copy.</p>
+  <h3>What if I already pasted a key into the chat?</h3>
+  <p>Revoke it and issue a new one. Redacting the transcript later doesn't recall what was already sent to the model or written to local history.</p>
+
+  <p class="meta t-sm">Published 2026-11-02. Describes Keyrelay 0.1.6.</p>
+
+  <nav class="next" aria-label="More guides">
+    <a href="/api-key-without-chat/"><b>Give your agent a key without chat</b><span>The local handoff step by step, with the agent instruction to copy.</span></a>
+    <a href="/how-it-works/"><b>How Keyrelay works</b><span>Every hop the key takes, what is checked, and what is out of scope.</span></a>
+  </nav>
+</article>
+</main>
+
+<footer>
+  <div class="wrap foot t-sm">
+    <span>Keyrelay v0.1.6 · © 2026 Cole Foster</span>
+    <nav aria-label="Footer">
+      <a href="/">Home</a>
+      <a href="https://github.com/colefoster/keyrelay">GitHub</a>
+      <a href="https://www.npmjs.com/package/keyrelay">npm</a>
+      <a href="https://github.com/colefoster/keyrelay/blob/main/SECURITY.md">Security policy</a>
+      <a href="https://github.com/colefoster/keyrelay/blob/main/LICENSE">Terms (MIT license)</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
