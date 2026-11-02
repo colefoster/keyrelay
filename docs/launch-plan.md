@@ -68,7 +68,7 @@ awesome-claude-code and skill directories. Build only if Phase 1 shows signal.
 
 Cole's call, in his voice, drafted from his notes. Pick one, spaced a few days after Phase 2:
 
-- **Show HN** (recommended): fits a small, free, MIT dev tool and links to the repo, not a sales page.
+- **Show HN**: Cole decided against it for now (2026-11-02).
 - An X post with the demo GIF.
 
 ## Measurement
