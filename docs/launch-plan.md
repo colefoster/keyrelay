@@ -48,6 +48,12 @@ From `drafts/directory-submissions.md`. Each is a public PR from Cole's account,
 Optional unlock: a small Claude Code skill that wraps the agent-instructions snippet would qualify for
 awesome-claude-code and skill directories. Build only if Phase 1 shows signal.
 
+### Phase 1 status (2026-11-02)
+
+- Opened https://github.com/bradAGI/awesome-cli-coding-agents/pull/599 (maintainer merges in batches).
+- Opened https://github.com/scadastrangelove/awesome-ai-security-tools/pull/216 (watchlist).
+- Not opened: `ottosulin/awesome-ai-security` (optional).
+
 ## Phase 2: writing on the project's own site
 
 1. Publish `drafts/posts-agent-api-access-without-keys.md` as a page under `keyrelay.colefoster.ca`, linked
