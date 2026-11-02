@@ -24,6 +24,17 @@ Drafted 2026-11-02. Follows the "distribution without shilling" order in
 5. Submit the sitemap in Search Console (existing access only).
 6. Keep the redaction hook out of all launch copy. `NOTES.md` says it can't make the transcript guarantee.
 
+### Phase 0 status (2026-11-02)
+
+- Done: 0.1.6 tagged and pushed; guide pages and sitemap return 200; GitHub topics added.
+- Waiting on Cole: `npm login && npm publish` for 0.1.6.
+- Skipped: the phone round trip. Cole's iPhone resolved no `ts.net` names at all (hil failed too), a phone
+  DNS problem rather than a Keyrelay one. The phone flow stays out of launch copy until it's tested; the
+  directory entry and the post's FAQ no longer mention it.
+- Not done: Search Console sitemap submission.
+- Found: the ash broker runs an October 14 build (`--auth whois` behind nginx) without the October 17
+  exact-Host check. `main` no longer has whois mode, so updating it means reworking that deployment.
+
 ## Phase 1: listings
 
 From `drafts/directory-submissions.md`. Each is a public PR from Cole's account, so each needs his go.
