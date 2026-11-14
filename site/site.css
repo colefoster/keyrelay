@@ -6,7 +6,7 @@
   --s25:2px;--s50:4px;--s75:8px;--s100:12px;--s200:16px;--s300:24px;--s400:32px;--s500:40px;--s600:48px;--s700:64px;--s800:80px;--s900:96px;
   /* B4 dark backgrounds only */
   --bg:#181818;--bg-1:#1F1F1F;--bg-2:#272727;--bg-3:#313131;--bg-0:#000000;
-  --fg:#FFFFFF;--fg-2:#B4B4B4;--fg-3:#8A8A8A;
+  --fg:#FFFFFF;--fg-2:#B4B4B4;--fg-3:#8E8E8E;
   --accent:#67E8F9;--accent-ink:#082F49;
   /* B7 base curve; design-to-motion curves for hero appear, card intros and stories */
   --base:cubic-bezier(0.22,1,0.36,1);
@@ -116,7 +116,7 @@ br.m{display:none}
 .term .ind{padding-left:var(--s300)}
 .form{padding:var(--s300)}
 .eyebrow{color:var(--accent);font-weight:600;letter-spacing:.12em;text-transform:uppercase}
-.form h3{margin-top:var(--s50);font-weight:600}
+.form .t-2xl{margin-top:var(--s50);font-weight:600}
 .form .intro{margin-top:var(--s75)}
 .dl{margin:var(--s200) 0 0;padding:var(--s100) var(--s200);border-radius:8px;background:var(--bg-2)}
 .dl dt{color:var(--fg-3)}.dl dt+dd{margin:0 0 var(--s75)}.dl dd:last-child{margin-bottom:0}
